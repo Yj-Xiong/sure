@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "task_id", "task_version", "dataset_version", "audio_version", "engine_task", "engine_commit", "capability_manifest_sha256", "metrics", "analysis_unit", "excluded_candidates", "model_candidate_keys", "standards_by_stage", "status"],
+  "properties": {
+    "schema": {"type": "string", "enum": ["sure.audio_eval.metric_plan.v1"]},
+    "task_id": {"type": "string"},
+    "task_version": {"type": "string"},
+    "dataset_version": {"type": "string"},
+    "audio_version": {"type": "string"},
+    "analysis_unit": {"type": "string", "enum": ["model_condition"]},
+    "excluded_candidates": {"type": "array", "items": {"type": "string"}, "minItems": 2},
+    "model_candidate_keys": {"type": "array", "items": {"type": "string"}, "minItems": 0},
+    "engine_task": {"type": "string"},
+    "engine_commit": {"type": "string", "minLength": 1},
+    "runtime_lock_sha256": {"type": ["string", "null"]},
+    "runtime_lock_file": {"type": ["string", "null"]},
+    "runtime_lock_file_sha256": {"type": ["string", "null"], "pattern": "^[a-fA-F0-9]{64}$"},
+    "capability_manifest_sha256": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"},
+    "standards_source": {"type": "string"},
+    "capabilities_source": {"type": "string"},
+    "runtime_source": {"type": ["string", "null"]},
+    "standards_by_stage": {"type": "object", "additionalProperties": {"type": "array", "items": {"type": "string"}}},
+    "metrics": {
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "type": "object",
+        "required": ["metric", "type", "direction", "reference_mode", "pipeline_id", "input_contract", "required_audio_inputs", "optional_audio_inputs", "matching_reference_required", "participates_in_model_correlation"],
+        "properties": {
+          "metric": {"type": "string"},
+          "type": {"type": "string", "enum": ["intrusive", "non_intrusive"]},
+          "direction": {"type": "string", "enum": ["higher_better", "lower_better"]},
+          "direction_source": {"type": "string"},
+          "reference_mode": {"type": "string", "enum": ["paired", "none"]},
+          "pipeline_id": {"type": "string"},
+          "input_contract": {"type": "string"},
+          "required_audio_inputs": {"type": "array", "items": {"type": "string"}},
+          "optional_audio_inputs": {"type": "array", "items": {"type": "string"}},
+          "matching_reference_required": {"type": "boolean"},
+          "participates_in_model_correlation": {"type": "boolean"},
+          "engine_route": {"type": "object"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "status": {"type": "string", "enum": ["success", "failed"]}
+    ,"diagnostics": {"type": "array", "items": {"type": "object"}}
+  }
+}

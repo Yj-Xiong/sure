@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "task_id", "task_version", "dataset_version", "engine_task", "sample_ids", "candidate_keys", "candidate_roles", "scale", "audio_policy"],
+  "properties": {
+    "schema": {"type": "string", "enum": ["sure.audio_eval.task_manifest.v1"]},
+    "task_id": {"type": "string"},
+    "task_version": {"type": "string"},
+    "dataset_version": {"type": "string"},
+    "sample_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "candidate_keys": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "candidate_roles": {"type": "object", "additionalProperties": {"type": "string"}},
+    "analysis_unit": {"type": "string", "enum": ["model_condition"]},
+    "excluded_candidates_from_correlation": {"type": "array", "items": {"type": "string"}},
+    "scale": {"type": "object"},
+    "audio_policy": {"type": "object"},
+    "metric_policies": {"type": "object", "additionalProperties": {"type": "object"}},
+    "objective_metrics": {"type": ["object", "array"]},
+    "engine_task": {"type": "string"},
+    "standards": {"type": "array", "items": {"type": "string"}},
+    "source_manifest_sha256": {"type": "string"}
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "report_persisted", "analysis_html", "manifest_path", "status"],
+  "properties": {
+    "schema": {"type": "string", "enum": ["sure.audio_eval.run_report.v1"]},
+    "report_persisted": {"type": "boolean", "enum": [true]},
+    "analysis_html": {"type": "string"},
+    "manifest_path": {"type": "string"},
+    "status": {"type": "string", "enum": ["success", "failed"]},
+    "artifact_manifest_sha256": {"type": "string"},
+    "next_action": {"type": ["string", "null"]}
+  }
+}

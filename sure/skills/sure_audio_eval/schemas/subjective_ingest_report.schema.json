@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "task_id", "raw_sources", "dedup_path", "latest_valid_rule", "complete_groups", "status"],
+  "properties": {
+    "schema": {"type": "string", "enum": ["sure.audio_eval.subjective_ingest.v1"]},
+    "task_id": {"type": "string"},
+    "raw_sources": {"type": "array", "items": {"type": "object"}, "minItems": 1},
+    "dedup_path": {"type": "string"},
+    "latest_valid_rule": {"type": "string"},
+    "complete_groups": {"type": "integer", "minimum": 0},
+    "status": {"type": "string", "enum": ["success", "failed"]},
+    "invalid_rows": {"type": "integer", "minimum": 0},
+    "duplicate_rows": {"type": "integer", "minimum": 0},
+    "task_version": {"type": ["string", "null"]},
+    "dataset_version": {"type": ["string", "null"]},
+    "audio_version": {"type": ["string", "null"]},
+    "invalid_rows_path": {"type": "string"},
+    "manifest_path": {"type": ["string", "null"]},
+    "audio_manifest_path": {"type": ["string", "null"]},
+    "complete_group_rule": {"type": "string"},
+    "valid_rows": {"type": "integer", "minimum": 0},
+    "dedup_rows": {"type": "integer", "minimum": 0}
+  }
+}

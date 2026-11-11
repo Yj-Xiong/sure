@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SURE Audio Evaluation Harness 示例</title>
+  <style>
+    :root {
+      --ink: #182230;
+      --muted: #657487;
+      --line: #dce4ed;
+      --panel: #ffffff;
+      --canvas: #f4f7fb;
+      --navy: #153b63;
+      --blue: #2f74b5;
+      --blue-soft: #e9f2fb;
+      --green: #207a58;
+      --green-soft: #e9f6f0;
+      --amber: #986a12;
+      --amber-soft: #fff6df;
+      --red: #aa3d3d;
+      --red-soft: #fceeee;
+      --shadow: 0 12px 30px rgba(24, 54, 86, .07);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--ink); background: var(--canvas); line-height: 1.5; }
+    header { color: #fff; background: linear-gradient(120deg, #123655, #1f5f91); padding: 28px 6vw 30px; }
+    .eyebrow { margin: 0 0 8px; text-transform: uppercase; letter-spacing: .13em; font-size: 11px; opacity: .78; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { max-width: 980px; margin-bottom: 10px; font-size: clamp(28px, 4vw, 45px); line-height: 1.08; letter-spacing: -.03em; }
+    .lead { max-width: 850px; margin: 0; color: #dcebf8; font-size: 16px; }
+    .app { display: grid; grid-template-columns: 230px minmax(0, 1fr); min-height: calc(100vh - 180px); }
+    aside { padding: 24px 16px; background: #edf3f8; border-right: 1px solid var(--line); }
+    .nav-title { color: var(--muted); padding: 0 12px 10px; font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+    nav button { width: 100%; border: 0; border-radius: 9px; margin: 3px 0; padding: 10px 12px; color: #385069; background: transparent; text-align: left; cursor: pointer; font: inherit; }
+    nav button:hover, nav button.active { color: var(--navy); background: #fff; box-shadow: 0 4px 12px rgba(23, 62, 94, .08); }
+    nav button.active { font-weight: 700; border-left: 3px solid var(--blue); padding-left: 9px; }
+    main { width: min(1240px, 100%); padding: 30px clamp(18px, 4vw, 56px) 60px; }
+    .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 18px; margin-bottom: 20px; }
+    .toolbar p { margin: 0; color: var(--muted); font-size: 14px; }
+    .run-state { display: inline-flex; align-items: center; gap: 7px; border: 1px solid #b9dccd; border-radius: 999px; padding: 7px 11px; color: var(--green); background: var(--green-soft); font-size: 12px; font-weight: 700; white-space: nowrap; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #2aa570; }
+    .page { display: none; }
+    .page.active { display: block; animation: appear .22s ease-out; }
+    @keyframes appear { from { opacity: .25; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+    .grid { display: grid; gap: 16px; }
+    .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .card { border: 1px solid var(--line); border-radius: 13px; padding: 20px; background: var(--panel); box-shadow: var(--shadow); }
+    .card h2 { margin-bottom: 8px; color: var(--navy); font-size: 19px; }
+    .card h3 { margin-bottom: 9px; font-size: 15px; }
+    .muted { color: var(--muted); }
+    .small { font-size: 12px; }
+    .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 20px 0; }
+    .metric { border: 1px solid var(--line); border-radius: 11px; padding: 14px; background: #fbfdff; }
+    .metric b { display: block; margin-bottom: 3px; color: var(--navy); font-size: 23px; letter-spacing: -.03em; }
+    .metric span { color: var(--muted); font-size: 12px; }
+    .stage-list { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+    .stage { position: relative; min-height: 140px; border: 1px solid var(--line); border-radius: 12px; padding: 14px; background: #fbfdff; }
+    .stage:not(:last-child)::after { content: "→"; position: absolute; top: 45px; right: -17px; color: #9aacbc; font-size: 20px; z-index: 2; }
+    .stage .number { color: var(--blue); font-size: 11px; font-weight: 800; letter-spacing: .08em; }
+    .stage h3 { margin: 6px 0 4px; font-size: 14px; }
+    .stage p { margin: 0; color: var(--muted); font-size: 12px; }
+    .badge { display: inline-block; border-radius: 999px; padding: 3px 8px; font-size: 11px; font-weight: 700; }
+    .badge.pass { color: var(--green); background: var(--green-soft); }
+    .badge.wait { color: var(--amber); background: var(--amber-soft); }
+    .badge.block { color: var(--red); background: var(--red-soft); }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 10px 9px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { color: #496078; background: #f5f8fb; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; }
+    code { padding: 2px 5px; border-radius: 5px; color: #244b70; background: #eef4f9; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .92em; }
+    .artifact-list { display: grid; gap: 9px; }
+    .artifact { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 11px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px; }
+    .artifact .state { width: 8px; height: 8px; border-radius: 50%; background: #36a777; }
+    .artifact strong { display: block; font-size: 13px; }
+    .artifact small { color: var(--muted); }
+    .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin: 12px 0 0; }
+    .flow span { border: 1px solid #c9d9e8; border-radius: 7px; padding: 7px 9px; color: #29557e; background: var(--blue-soft); font-size: 12px; }
+    .flow i { color: #9aacbc; font-style: normal; }
+    .callout { border-left: 4px solid var(--blue); padding: 13px 16px; color: #35526d; background: var(--blue-soft); }
+    .callout.warning { border-color: #d09a2c; color: #705319; background: var(--amber-soft); }
+    .callout.danger { border-color: var(--red); color: #7d3333; background: var(--red-soft); }
+    .progress { height: 8px; overflow: hidden; border-radius: 99px; background: #e8eef4; }
+    .progress > span { display: block; width: 68%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #2c78b6, #54a3cf); }
+    .footer { margin-top: 30px; color: var(--muted); font-size: 12px; }
+    @media (max-width: 900px) { .app { grid-template-columns: 1fr; } aside { border-right: 0; border-bottom: 1px solid var(--line); padding: 12px; } nav { display: flex; overflow-x: auto; gap: 5px; } nav button { min-width: max-content; } .grid.two, .grid.three { grid-template-columns: 1fr; } .stage-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } .stage:nth-child(2)::after { display: none; } .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 560px) { .stage-list { grid-template-columns: 1fr; } .stage::after { display: none; } .toolbar { align-items: flex-start; flex-direction: column; } }
+  </style>
+</head>
+<body>
+  <header>
+    <p class="eyebrow">SURE Audio Evaluation Harness · example run</p>
+    <h1>从任务清单到可复核的主客观联合分析</h1>
+    <p class="lead">这是一个静态示例页面，用来说明 Agent 如何按阶段推进评测、留下产物，并在数据或结果不符合约束时停下来等待修复。</p>
+  </header>
+  <div class="app">
+    <aside>
+      <div class="nav-title">运行视图</div>
+      <nav>
+        <button class="active" data-page="overview">运行概览</button>
+        <button data-page="contract">任务与约束</button>
+        <button data-page="pipeline">处理流程</button>
+        <button data-page="artifacts">产物与门控</button>
+        <button data-page="diagnostics">修复示例</button>
+      </nav>
+    </aside>
+    <main>
+      <div class="toolbar">
+        <p><strong>Run:</strong> <code>audio_eval_20261111_001</code> · <strong>Task:</strong> <code>speech-quality-example-v1</code></p>
+        <div class="run-state"><span class="dot"></span>可继续运行</div>
+      </div>
+
+      <section class="page active" id="overview">
+        <div class="card">
+          <h2>运行概览</h2>
+          <p class="muted">Agent 只决定任务范围和执行顺序，文件格式、数据范围、来源哈希和终态产物由 Harness 检查。</p>
+          <div class="metrics">
+            <div class="metric"><b>4 / 7</b><span>已完成阶段</span></div>
+            <div class="metric"><b>2,240</b><span>已接收评分行</span></div>
+            <div class="metric"><b>12</b><span>客观指标</span></div>
+            <div class="metric"><b>0</b><span>未处理的门控失败</span></div>
+          </div>
+          <div class="progress" aria-label="完成进度"><span></span></div>
+          <div class="flow" aria-label="当前状态流">
+            <span>任务清单</span><i>→</i><span>音频校验</span><i>→</i><span>客观评分</span><i>→</i><span>听评整理</span><i>→</i><span>联合分析</span><i>→</i><span>报告</span>
+          </div>
+        </div>
+        <div class="stage-list" style="margin-top:16px">
+          <div class="stage"><div class="number">01 · PASS</div><h3>任务清单</h3><p>样本、候选、量表和音频版本已经冻结。</p></div>
+          <div class="stage"><div class="number">02 · PASS</div><h3>指标计划</h3><p>先确定指标类型、方向、reference mode 和模型分析范围。</p></div>
+          <div class="stage"><div class="number">03 · PASS</div><h3>音频条件</h3><p>格式、哈希、响度和 True Peak 检查完成。</p></div>
+          <div class="stage"><div class="number">04 · RUNNING</div><h3>客观与主观数据</h3><p>正在整理逐条件客观结果和最新有效听评记录。</p></div>
+        </div>
+      </section>
+
+      <section class="page" id="contract">
+        <div class="grid two">
+          <div class="card"><h2>任务清单</h2><div class="table-wrap"><table><tbody>
+            <tr><th>task_id</th><td><code>speech-quality-example-v1</code></td></tr>
+            <tr><th>dataset_version</th><td><code>dataset-v1</code></td></tr>
+            <tr><th>audio_version</th><td><code>audio-v1</code></td></tr>
+            <tr><th>sample_ids</th><td>2 条语音样本</td></tr>
+            <tr><th>candidate_keys</th><td>model_a、model_b</td></tr>
+            <tr><th>score scale</th><td>0–100，步长 1</td></tr>
+          </tbody></table></div></div>
+          <div class="card"><h2>音频约束</h2><div class="table-wrap"><table><tbody>
+            <tr><th>采样率</th><td>16 kHz</td></tr>
+            <tr><th>声道</th><td>单声道</td></tr>
+            <tr><th>时长</th><td>8 秒</td></tr>
+            <tr><th>响度</th><td>ITU-R BS.1770</td></tr>
+            <tr><th>True Peak</th><td>最高 −1 dBTP</td></tr>
+            <tr><th>相关性范围</th><td>只纳入 model_a、model_b；reference / unprocessed 不进入相关性</td></tr>
+          </tbody></table></div></div>
+        </div>
+        <div class="card" style="margin-top:16px"><h2>分析单位</h2><p>每个 <code>sample_id × model candidate</code> 形成一个条件点。听评者分数先汇总为 MOS，再与相同条件的客观指标计算 Pearson / Spearman。重复提交以同一任务、听评者、样本和候选的最新有效记录为准，原始提交仍保留。</p><div class="callout">只分析模型条件点的主客观相关性。reference 和 unprocessed 不进入相关性；不再拆分四类候选范围，也不生成方法两两或指标两两矩阵。</div></div>
+      </section>
+
+      <section class="page" id="pipeline">
+        <div class="card"><h2>处理流程</h2><p class="muted">每个阶段产生自己的文件，下一阶段只读取已经通过检查的产物。</p><div class="stage-list">
+          <div class="stage"><div class="number">01</div><h3>resolve_task</h3><p>读取 task manifest，冻结输入和工具注册表。</p><span class="badge pass">已通过</span></div>
+          <div class="stage"><div class="number">02</div><h3>resolve_metrics</h3><p>确定指标类型、方向、配对方式和排除候选。</p><span class="badge pass">已通过</span></div>
+          <div class="stage"><div class="number">03</div><h3>validate_audio</h3><p>检查音频身份、格式、响度、峰值和哈希。</p><span class="badge pass">已通过</span></div>
+          <div class="stage"><div class="number">04</div><h3>run_objective</h3><p>按指标计划生成逐条件客观结果。</p><span class="badge pass">已通过</span></div>
+          <div class="stage"><div class="number">05</div><h3>ingest_subjective</h3><p>校验、留存原始行、按最新有效记录去重。</p><span class="badge wait">进行中</span></div>
+          <div class="stage"><div class="number">06</div><h3>aggregate_subjective</h3><p>计算 MOS、SD、t-CI95 和完整组覆盖。</p><span class="badge wait">等待</span></div>
+          <div class="stage"><div class="number">07</div><h3>joint_analysis</h3><p>计算模型条件点的 MOS-to-metric Pearson / Spearman。</p><span class="badge wait">等待</span></div>
+          <div class="stage"><div class="number">08</div><h3>render_report</h3><p>输出 HTML、manifest、哈希和最终运行报告。</p><span class="badge wait">等待</span></div>
+        </div></div>
+        <div class="card" style="margin-top:16px"><h2>数据流</h2><div class="flow"><span>task_manifest</span><i>→</i><span>metric_plan</span><i>→</i><span>evaluation_context</span><i>→</i><span>audio_manifest</span><i>→</i><span>objective_scores</span><i>→</i><span>subjective_dedup</span><i>→</i><span>condition_mos</span><i>→</i><span>model_condition_correlations</span><i>→</i><span>analysis.html</span></div></div>
+        <div class="card" style="margin-top:16px"><h2>阶段与依据</h2><div class="table-wrap"><table><thead><tr><th>阶段</th><th>检查内容</th><th>参考依据</th></tr></thead><tbody>
+          <tr><td>任务与指标计划</td><td>评分对象、模型候选、指标类型、方向和配对方式</td><td>BS.1284 / P.808</td></tr>
+          <tr><td>音频条件</td><td>响度、采样率、时长、版本与哈希</td><td>BS.1770</td></tr>
+          <tr><td>原始评分与 MOS</td><td>保留听评者、设备、批次，汇总 MOS 和 CI95</td><td>P.1401 / NIST</td></tr>
+          <tr><td>模型条件相关性</td><td>客观指标与模型 MOS 的 Pearson / Spearman</td><td>P.1401 / NIST</td></tr>
+          <tr><td>稳定性与发布</td><td>筛查前后、错误检查、来源和报告产物</td><td>ETSI TS 103 281</td></tr>
+        </tbody></table></div><p class="small muted" style="margin:12px 0 0">标准用于界定阶段和报告边界；标准没有规定的数值阈值必须作为 Harness 自己的版本化规则记录。</p></div>
+      </section>
+
+      <section class="page" id="artifacts">
+        <div class="card"><h2>产物与门控</h2><p class="muted">示例运行目录：<code>.sure/runs/audio_eval_20261111_001/artifacts/</code></p><div class="artifact-list">
+          <div class="artifact"><span class="state"></span><div><strong>evaluation_context.json</strong><small>输入文件哈希、指标范围、标准和 engine 身份</small></div><span class="badge pass">ready</span></div>
+          <div class="artifact"><span class="state"></span><div><strong>tool_registry.json</strong><small>可调用脚本、所属阶段、输入和输出契约</small></div><span class="badge pass">ready</span></div>
+          <div class="artifact"><span class="state"></span><div><strong>objective_metric_plan.json</strong><small>指标类型、方向、reference mode 和模型条件分析范围</small></div><span class="badge pass">ready</span></div>
+          <div class="artifact"><span class="state"></span><div><strong>audio_manifest.json</strong><small>音频条件、SHA-256、响度和峰值校验</small></div><span class="badge pass">ready</span></div>
+          <div class="artifact"><span class="state"></span><div><strong>objective_run_report.json</strong><small>逐条件客观结果、metric direction、pipeline provenance</small></div><span class="badge pass">ready</span></div>
+          <div class="artifact"><span class="state"></span><div><strong>subjective_ingest_report.json</strong><small>原始来源、去重规则、无效行和完整组统计</small></div><span class="badge wait">running</span></div>
+          <div class="artifact"><span class="state"></span><div><strong>condition_summary.json</strong><small>MOS、SD、t-CI95 和 sample × candidate 条件点</small></div><span class="badge wait">pending</span></div>
+          <div class="artifact"><span class="state"></span><div><strong>analysis_report.json</strong><small>模型条件点的 MOS-to-metric 相关、筛查前后和 provenance</small></div><span class="badge wait">pending</span></div>
+          <div class="artifact"><span class="state"></span><div><strong>main_agent_run_report.json</strong><small>终态状态、产物 manifest 和 HTML 路径</small></div><span class="badge wait">pending</span></div>
+        </div></div>
+      </section>
+
+      <section class="page" id="diagnostics">
+        <div class="grid two">
+          <div class="card"><h2>门控失败示例</h2><div class="callout danger"><strong>objective row rejected</strong><p class="small" style="margin:7px 0 0">metric <code>pesq</code> 的 <code>reference_mode=paired</code>，但缺少 matching reference SHA-256。</p></div><p class="small muted" style="margin-top:12px">Harness 不会用旧结果补这一行，也不会把该指标降级为 no-reference。</p></div>
+          <div class="card"><h2>Agent 修复动作</h2><div class="flow"><span>读取 gate 错误</span><i>→</i><span>补齐配对 reference</span><i>→</i><span>重新生成 objective rows</span><i>→</i><span>再次校验</span></div><p class="small muted" style="margin-top:12px">如果连续三次使用相同输入和相同错误，loop guard 会停止运行并要求人工修复。</p></div>
+        </div>
+        <div class="card" style="margin-top:16px"><h2>为什么停下来</h2><p>停止的目的不是阻止评测，而是防止错误文件继续进入后续统计。修复输入或重新生成产物后，可以通过 <code>/sure_resume</code> 从当前 checkpoint 继续，不需要从头开始。</p><div class="callout warning">失败、暂停和不完整都必须留下事件、诊断和已有产物；只有所有必要产物通过终态检查，运行才可以标记为 success。</div></div>
+      </section>
+      <p class="footer">静态 Harness demo · 示例数据仅用于说明流程，不代表任何真实评测结果。</p>
+    </main>
+  </div>
+  <script>
+    const buttons = [...document.querySelectorAll('nav button')];
+    const pages = [...document.querySelectorAll('.page')];
+    function show(id) {
+      buttons.forEach(button => button.classList.toggle('active', button.dataset.page === id));
+      pages.forEach(page => page.classList.toggle('active', page.id === id));
+      history.replaceState(null, '', '#' + id);
+    }
+    buttons.forEach(button => button.addEventListener('click', () => show(button.dataset.page)));
+    const initial = location.hash.slice(1);
+    if (pages.some(page => page.id === initial)) show(initial);
+  </script>
+</body>
+</html>

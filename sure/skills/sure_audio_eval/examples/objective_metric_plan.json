@@ -1,0 +1,35 @@
+{
+  "schema": "sure.audio_eval.metric_plan.v1",
+  "task_id": "speech-quality-example-v1",
+  "task_version": "v1",
+  "dataset_version": "dataset-v1",
+  "audio_version": "audio-v1",
+  "engine_task": "se",
+  "engine_commit": "8041b1249c5d0ce39a96c72cab01e49b09cc87e9",
+  "runtime_lock_sha256": "9e8ea7d31d5f2be737450ef4eae71ecfdd7ad9085a606a12d034d8e2867dfb1b",
+  "runtime_lock_file": "sure/runtime/evaluation/requirements.lock.txt",
+  "runtime_lock_file_sha256": "fb2f0b85b36f761c8879ef263365ddcff8e5270cf05263b46dbbcd1ad6dfc85b",
+  "capability_manifest_sha256": "0a25b8cd6799b636104ef919abf3e3ca8a25fd93ec5a6882a5dc25e54548189a",
+  "model_candidate_keys": ["model_a", "model_b"],
+  "standards_source": "sure/skills/sure_audio_eval/references/STANDARDS.md",
+  "capabilities_source": "sure/runtime/evaluation/engine-capabilities.generated.json",
+  "runtime_source": "sure/runtime/evaluation/runtime.json",
+  "analysis_unit": "model_condition",
+  "excluded_candidates": ["hidden_reference", "unprocessed"],
+  "standards_by_stage": {
+    "resolve_task": ["ITU-R BS.1284-2", "P.808"],
+    "resolve_metrics": ["ITU-R BS.1284-2", "P.808"],
+    "validate_audio": ["ITU-R BS.1770"],
+    "run_objective": ["ITU-T P.1401", "NIST Statistical Handbook"],
+    "ingest_subjective": ["ITU-T P.1401"],
+    "aggregate_subjective": ["ITU-T P.1401", "NIST Statistical Handbook"],
+    "joint_analysis": ["ITU-T P.1401", "NIST Statistical Handbook"],
+    "screening": ["ETSI TS 103 281 V1.3.1"],
+    "render_report": ["ETSI TS 103 281 V1.3.1"]
+  },
+  "metrics": [
+    {"metric": "pesq", "type": "intrusive", "direction": "higher_better", "reference_mode": "paired", "pipeline_id": "se.any.pesq.pesq_v1", "input_contract": "scoring/pesq", "required_audio_inputs": ["enhanced_audio", "reference_audio"], "optional_audio_inputs": ["noisy_audio"], "matching_reference_required": true, "participates_in_model_correlation": true},
+    {"metric": "dnsmos", "type": "non_intrusive", "direction": "higher_better", "reference_mode": "none", "pipeline_id": "se.any.dnsmos.dnsmos_v1", "input_contract": "scoring/dnsmos", "required_audio_inputs": ["enhanced_audio"], "optional_audio_inputs": ["noisy_audio"], "matching_reference_required": false, "participates_in_model_correlation": true}
+  ],
+  "status": "success"
+}

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "task_id", "audio_version", "items", "validated"],
+  "properties": {
+    "schema": {"type": "string", "enum": ["sure.audio_eval.audio_manifest.v1"]},
+    "task_id": {"type": "string"},
+    "audio_version": {"type": "string"},
+    "items": {"type": "array", "items": {"type": "object"}, "minItems": 1},
+    "validated": {"type": "boolean", "enum": [true]},
+    "lufs_target": {"type": "number"},
+    "true_peak_max": {"type": "number"},
+    "source_hashes": {"type": "array", "items": {"type": "object"}}
+  }
+}

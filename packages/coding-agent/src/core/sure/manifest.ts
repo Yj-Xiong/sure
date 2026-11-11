@@ -14,6 +14,7 @@ export const SURE_COMMANDS = [
 	"sure_onboard",
 	"sure_trans",
 	"sure_feed",
+	"sure_audio_eval",
 ] as const;
 
 const SURE_COMMAND_SET = new Set<string>(SURE_COMMANDS);

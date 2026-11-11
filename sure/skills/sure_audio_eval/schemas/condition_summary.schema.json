@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "task_id", "analysis_unit", "mos_path", "ci95_path", "condition_count", "status"],
+  "properties": {
+    "schema": {"type": "string", "enum": ["sure.audio_eval.condition_summary.v1"]},
+    "task_id": {"type": "string"},
+    "analysis_unit": {"type": "string", "enum": ["sample_x_candidate"]},
+    "mos_path": {"type": "string"},
+    "ci95_path": {"type": "string"},
+    "condition_count": {"type": "integer", "minimum": 0},
+    "status": {"type": "string", "enum": ["success", "failed"]},
+    "mos_scale": {"type": "object"},
+    "ci_method": {"type": "string"},
+    "complete_groups": {"type": "integer", "minimum": 0},
+    "excluded_incomplete_rows": {"type": "integer", "minimum": 0},
+    "aggregated_rows": {"type": "integer", "minimum": 0},
+    "dataset_version": {"type": ["string", "null"]},
+    "audio_version": {"type": ["string", "null"]}
+  }
+}

@@ -168,7 +168,7 @@ Restore by reverting the commit that removed it; see git log.
 
 ## SURE Harness
 
-This fork adds the SURE evaluation control plane: seven skill commands (`/sure_feed`, `/sure_onboard`, `/sure_trans`, `/sure_approve`, `/sure_infer`, `/sure_eval`, `/sure_agent_eval`) plus the built-in `/sure_init` and `/sure_resume` commands. The common user entry point is `README.md`; bundled company distributions also carry `private/site/docs/handbook.md`. This section is the maintainer side.
+This fork adds the SURE evaluation control plane: eight skill commands (`/sure_feed`, `/sure_onboard`, `/sure_trans`, `/sure_approve`, `/sure_infer`, `/sure_eval`, `/sure_agent_eval`, `/sure_audio_eval`) plus the built-in `/sure_init` and `/sure_resume` commands. The common user entry point is `README.md`; bundled company distributions also carry `private/site/docs/handbook.md`. This section is the maintainer side.
 
 ### Skill Package Layout
 

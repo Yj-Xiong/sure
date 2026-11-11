@@ -1,0 +1,26 @@
+{
+  "schema": "sure.audio_eval.task_manifest.v1",
+  "task_id": "speech-quality-example-v1",
+  "task_version": "v1",
+  "dataset_version": "dataset-v1",
+  "engine_task": "se",
+  "sample_ids": ["sample_0001", "sample_0002"],
+  "candidate_keys": ["hidden_reference", "unprocessed", "model_a", "model_b"],
+  "candidate_roles": {"hidden_reference": "hidden_reference", "unprocessed": "unprocessed", "model_a": "model", "model_b": "model"},
+  "scale": {"min": 0, "max": 100, "step": 1, "dimension": "overall_quality"},
+  "analysis_unit": "model_condition",
+  "excluded_candidates_from_correlation": ["hidden_reference", "unprocessed"],
+  "metric_policies": {
+    "pesq": {"direction": "higher_better", "type": "intrusive", "reference_mode": "paired", "matching_reference_required": true},
+    "dnsmos": {"direction": "higher_better", "type": "non_intrusive", "reference_mode": "none", "matching_reference_required": false}
+  },
+  "audio_policy": {
+    "audio_version": "audio-v1",
+    "sample_rate": 16000,
+    "channels": 1,
+    "duration_seconds": 8,
+    "loudness_standard": "ITU-R BS.1770",
+    "true_peak_max_dbTP": -1
+  },
+  "standards": ["ITU-T P.1401", "ITU-R BS.1770", "ETSI TS 103 281"]
+}

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "task_id", "metric_rows_path", "metrics", "row_count", "engine_commit", "status"],
+  "properties": {
+    "schema": {"type": "string", "enum": ["sure.audio_eval.objective_run.v1"]},
+    "task_id": {"type": "string"},
+    "metric_rows_path": {"type": "string"},
+    "metrics": {"type": "array", "items": {"type": "object"}, "minItems": 0},
+    "row_count": {"type": "integer", "minimum": 0},
+    "engine_commit": {"type": "string", "minLength": 1},
+    "diagnostics": {"type": "array", "items": {"type": "object"}},
+    "status": {"type": "string", "enum": ["success", "failed"]},
+    "route_plan_path": {"type": ["string", "null"]},
+    "audio_hash_policy": {"type": "string"}
+  }
+}

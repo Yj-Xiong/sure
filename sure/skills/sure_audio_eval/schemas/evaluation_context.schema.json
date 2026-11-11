@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "run_id", "task_manifest", "metrics", "analysis_unit", "standards", "standards_by_stage", "source_files", "policy", "input_fingerprint"],
+  "properties": {
+    "schema": {"type": "string", "enum": ["sure.audio_eval.context.v1"]},
+    "run_id": {"type": "string"},
+    "task_manifest": {"type": "string"},
+    "metrics": {"type": "array", "items": {"type": "string"}},
+    "analysis_unit": {"type": "string", "enum": ["model_condition"]},
+    "standards": {"type": "array", "items": {"type": "string"}},
+    "standards_by_stage": {"type": "object", "additionalProperties": {"type": "array", "items": {"type": "string"}}},
+    "code_revision": {"type": ["string", "null"]},
+    "engine_commit": {"type": ["string", "null"]},
+    "capability_manifest_sha256": {"type": ["string", "null"]},
+    "runtime_lock_sha256": {"type": ["string", "null"]},
+    "source_files": {"type": "array", "items": {"type": "object"}},
+    "policy": {"type": "object"},
+    "input_fingerprint": {"type": "string", "minLength": 64, "maxLength": 64}
+  }
+}

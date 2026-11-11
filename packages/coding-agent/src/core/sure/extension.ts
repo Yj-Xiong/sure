@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { basename, isAbsolute, relative, resolve } from "node:path";
+import { basename, isAbsolute, join, relative, resolve } from "node:path";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
 import {
@@ -11,6 +11,7 @@ import {
 	type ExtensionFactory,
 } from "../extensions/index.ts";
 import { SureHookRunner } from "./hooks.ts";
+import { buildSureContext } from "./context-manager.ts";
 import { runSureInit } from "./init.ts";
 import type { SureInitManifest } from "./init-types.ts";
 import { discoverSureSkillPackages, SURE_COMMANDS, type SureDiscoveryDiagnostic } from "./manifest.ts";
@@ -38,8 +39,7 @@ const finishToolParams = Type.Object({
 		description: "Final Sure run status.",
 	}),
 	manifest_path: Type.String({
-		description:
-			"Path to the run-level Sure finish manifest (normally .sure/runs/<run_id>/manifest.json), not a skill-produced artifact manifest such as Feed's artifacts/debug/handoff_manifest.json; use a project-relative path or an absolute path inside the project.",
+		description: "Path to the final artifact manifest, relative to the project cwd or absolute under the project.",
 	}),
 	summary: Type.String({ description: "Concise final summary of the Sure run." }),
 	artifacts: Type.Optional(Type.Unsafe<unknown>({ description: "Structured final artifact summary." })),
@@ -122,6 +122,8 @@ export function buildInvocationPrompt(skillPackage: SureSkillPackage, run: SureR
 		`Run directory: ${relative(run.cwd, run.runDir)}`,
 		`User arguments: ${agentArgs || "(none)"}`,
 		"",
+		buildSureContext(run),
+		"",
 		"Run this Sure skill as a scientific task. Produce durable artifacts in the run directory or project workspace.",
 		"Use the skill instructions below. References are relative to the package directory.",
 		"",
@@ -150,6 +152,8 @@ export function buildResumePrompt(
 		`Checkpoint: ${checkpoint?.label ?? checkpoint?.id ?? "(unnamed)"}`,
 		`Where it stopped: ${state?.message ?? "(not recorded)"}`,
 		`Resume from: ${checkpoint?.resume_hint ?? "(no hint recorded; read the run directory to see what is already done)"}`,
+		"",
+		buildSureContext(run),
 		"Read the existing artifacts before writing anything, and do not redo units that are already complete.",
 		"</sure_resume>",
 	].join("\n");
@@ -1084,6 +1088,23 @@ export function createSureExtension(): ExtensionFactory {
 			}
 			if (active.record.status !== "running") {
 				return;
+			}
+			// Domain skills may persist a loop_guard record before the agent turn
+			// settles. Stop immediately instead of spending another automatic nudge.
+			const loopGuardPath = join(active.record.runDir, "artifacts", "loop_guard.json");
+			try {
+				const loopGuard = JSON.parse(readFileSync(loopGuardPath, "utf8")) as { triggered?: boolean; trigger?: string };
+				if (loopGuard.triggered === true) {
+					const runManager = new SureRunManager(active.record.cwd);
+					active.record = runManager.setStatus(active.record, "failed", "loop_guard_triggered");
+					active.record = runManager.updateRun(active.record, { lastRepair: `Loop guard triggered (${loopGuard.trigger ?? "no-progress"}). Repair the cause, then run /sure_resume.` }, "loop_guard_blocked", loopGuard);
+					ctx.ui.notify(`Sure run ${active.record.runId} stopped by the loop guard. Repair the cause and run /sure_resume.`, "error");
+					pi.appendEntry("sure.run", active.record);
+					clearActiveRun(pi, active, setActiveRun);
+					return;
+				}
+			} catch {
+				// No loop record is the normal state for other SURE skills.
 			}
 			const messages = active.lastAgentMessages;
 			active.lastAgentMessages = undefined;

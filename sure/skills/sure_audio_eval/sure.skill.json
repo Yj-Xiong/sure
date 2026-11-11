@@ -1,0 +1,31 @@
+{
+  "name": "sure_audio_eval",
+  "command": "/sure_audio_eval",
+  "description": "Run a reproducible subjective listening and objective speech-quality evaluation with auditable gates.",
+  "prompt": "SKILL.md",
+  "hooks": {
+    "pre_start": [{"module": "hooks/index.ts", "handler": "preStart"}],
+    "pre_tool_call": [{"module": "hooks/index.ts", "handler": "preToolCall"}],
+    "post_tool_result": [{"module": "hooks/index.ts", "handler": "postToolResult"}],
+    "pre_finish": [{"module": "hooks/index.ts", "handler": "preFinish"}],
+    "post_finish": [{"module": "hooks/index.ts", "handler": "postFinish"}],
+    "on_error": [{"module": "hooks/index.ts", "handler": "onError"}]
+  },
+  "artifacts": [
+    {"type": "evaluation_context", "path": "artifacts/evaluation_context.json", "required": true, "description": "Frozen task, source, metric and policy identity."},
+    {"type": "tool_registry", "path": "artifacts/tool_registry.json", "required": true, "description": "Registered deterministic tools and their output contracts."},
+    {"type": "task_manifest", "path": "artifacts/task_manifest_resolved.json", "required": true, "description": "Resolved task/sample/candidate/audio contract."},
+    {"type": "objective_metric_plan", "path": "artifacts/objective_metric_plan.json", "required": true, "description": "Objective metrics, type, direction, reference mode, model-only analysis policy and stage references."},
+    {"type": "audio_manifest", "path": "artifacts/audio_manifest.json", "required": true, "description": "Validated audio conditions and hashes."},
+    {"type": "objective_run", "path": "artifacts/objective_run_report.json", "required": true, "description": "Objective metric rows with engine and route provenance."},
+    {"type": "subjective_ingest", "path": "artifacts/subjective_ingest_report.json", "required": true, "description": "Validated raw ratings, latest-valid deduplication and complete groups."},
+    {"type": "condition_summary", "path": "artifacts/condition_summary.json", "required": true, "description": "Condition MOS, standard deviation and t-CI95."},
+    {"type": "analysis", "path": "artifacts/analysis_report.json", "required": true, "description": "Model-condition MOS-to-metric correlations, screening sensitivity and provenance."},
+    {"type": "run_report", "path": "artifacts/main_agent_run_report.json", "required": true, "description": "Final report persistence and release status."}
+  ],
+  "ui": {
+    "primaryCounters": ["completed_units", "total_units", "gate_blocks"],
+    "artifactTypes": ["evaluation_context", "tool_registry", "task_manifest", "objective_metric_plan", "audio_manifest", "objective_run", "subjective_ingest", "condition_summary", "analysis", "run_report"],
+    "defaultExpandedSections": ["diagnostics", "artifacts"]
+  }
+}
