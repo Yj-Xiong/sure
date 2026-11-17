@@ -376,16 +376,17 @@
       <div class="section-head"><h2>当前状态</h2><p>实现检查与正式运行 gate 分开记录。</p></div>
       <div class="grid two">
         <div class="card">
-          <h3><span class="status pass">实现检查</span></h3>
+          <h3><span class="status pass">定向核验</span></h3>
           <div class="table-wrap"><table><thead><tr><th>检查</th><th>结果</th></tr></thead><tbody>
             <tr><td>Python scripts 编译</td><td>通过</td></tr>
-            <tr><td>Metric plan / correlation / render 单元测试</td><td>6 / 6 通过</td></tr>
+            <tr><td>Metric plan / correlation / render 单元测试</td><td>8 / 8 通过</td></tr>
             <tr><td><code>npm run check:sure-hooks</code></td><td>通过</td></tr>
             <tr><td><code>npm run check:ts-imports</code></td><td>通过</td></tr>
             <tr><td>HTML + final manifest smoke</td><td>通过</td></tr>
             <tr><td>锁定 engine SI-SDR smoke</td><td>通过，2 条条件记录</td></tr>
             <tr><td>本地分支</td><td><code>harness-tui-agent</code> 已同步远端</td></tr>
           </tbody></table></div>
+          <div class="callout warn" style="margin-top:12px"><strong>全库检查仍被迁移工作树阻断</strong><p><code>npm run check</code> 受缺失 <code>.gitmodules</code>、fixture provenance、site boundary 和既有 <code>packages/ai</code> 文件影响。<code>./test.sh</code> 受缺失 <code>packages/ai/src/providers/data/.manifest.json</code> 影响，已记录失败原因，没有修改这些无关文件。</p></div>
         </div>
         <div class="card">
           <h3><span class="status block">正式运行 gate</span></h3>
