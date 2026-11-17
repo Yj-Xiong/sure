@@ -153,7 +153,7 @@ def main() -> None:
         writer = csv.DictWriter(handle, fieldnames=mos_fields)
         writer.writeheader()
         for (sample, candidate), values in sorted(groups.items()):
-            mean = statistics.fmean(values)
+            mean = sum(values) / len(values)
             sd = statistics.stdev(values) if len(values) > 1 else ""
             writer.writerow({"sample_id": sample, "candidate_key": candidate, "n": len(values), "mos": mean, "sd": sd, **provenance})
     with args.ci95.open("w", newline="", encoding="utf-8") as handle:
@@ -165,7 +165,7 @@ def main() -> None:
                 method, available = "unavailable (n<2)", False
             else:
                 critical = t_critical_95(len(values) - 1)
-                mean = statistics.fmean(values)
+                mean = sum(values) / len(values)
                 margin = critical * statistics.stdev(values) / math.sqrt(len(values)) if critical is not None else float("nan")
                 low, high = mean - margin, mean + margin
                 method, available = "t-distribution 95% CI", True
