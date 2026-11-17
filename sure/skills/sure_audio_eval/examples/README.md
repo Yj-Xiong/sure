@@ -2,6 +2,8 @@
 
 打开 `harness-demo.html` 即可离线查看，不需要启动服务器或安装依赖。
 
+运行 `./run-example.sh` 可以用示例任务清单解析锁定的 `pesq` 和 `dnsmos` route，并在 `.sure/examples/audio-eval-plan/objective_metric_plan.json` 写出指标计划。这个命令只覆盖 `resolve_metrics`，真实任务还需要提供音频、客观输入和主观提交文件。
+
 页面包含五个视图
 
 - 运行概览

@@ -147,6 +147,12 @@
     .runtime-state { justify-self: end; }
     .missing { color: var(--red); background: var(--red-soft); }
     .blocked { color: var(--amber); background: var(--amber-soft); }
+    pre { margin: 14px 0 0; padding: 16px; overflow-x: auto; border: 1px solid #d4dce7; border-radius: 5px; color: #29445e; background: #f5f8fb; font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; }
+    .example-step { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+    .example-step:last-child { border-bottom: 0; }
+    .example-step .index { color: var(--blue); font-weight: 800; }
+    .example-step strong { display: block; margin-bottom: 3px; }
+    .example-step small { color: var(--muted); }
     code { padding: 2px 5px; border-radius: 5px; color: #285879; background: #edf4f9; font: .92em ui-monospace, SFMono-Regular, Menlo, monospace; }
     .list { display: grid; gap: 9px; margin: 0; padding: 0; list-style: none; }
     .list li { position: relative; padding-left: 20px; }
@@ -179,7 +185,7 @@
     #page-flow .card { overflow: hidden; }
     #page-artifacts .card { overflow: hidden; }
     #page-validation .card { overflow: hidden; }
-    @media (max-width: 560px) { .wrap { padding: 18px 13px 40px; } .hero { padding: 25px 22px; } .grid.four, .grid.three, .grid.two { grid-template-columns: 1fr; } .flow { grid-template-columns: 1fr 1fr; } .flow-step:nth-child(2)::after, .flow-step:nth-child(4)::after, .flow-step:nth-child(6)::after, .flow-step:nth-child(8)::after { display: none; } .notes-stack { grid-template-columns: 1fr; } .process-card { min-height: 390px; padding: 8px; } .orbit-node { width: 88px; padding: 7px 4px; font-size: 10px; } .orbit-center strong { font-size: 20px; } .runtime-row { grid-template-columns: 1fr; gap: 4px; } .runtime-state { justify-self: start; } .sop-table th:first-child, .sop-table td:first-child, .sop-table th:last-child, .sop-table td:last-child { width: auto; white-space: normal; } }
+    @media (max-width: 560px) { .wrap { padding: 18px 13px 40px; } .hero { padding: 25px 22px; } .grid.four, .grid.three, .grid.two { grid-template-columns: 1fr; } .flow { grid-template-columns: 1fr 1fr; } .flow-step:nth-child(2)::after, .flow-step:nth-child(4)::after, .flow-step:nth-child(6)::after, .flow-step:nth-child(8)::after { display: none; } .notes-stack { grid-template-columns: 1fr; } .process-card { min-height: 390px; padding: 8px; } .orbit-node { width: 88px; padding: 7px 4px; font-size: 10px; } .orbit-center strong { font-size: 20px; } .runtime-row { grid-template-columns: 1fr; gap: 4px; } .runtime-state { justify-self: start; } .sop-table th:first-child, .sop-table td:first-child, .sop-table th:last-child, .sop-table td:last-child { width: auto; white-space: normal; } .example-step { grid-template-columns: 28px minmax(0, 1fr); } }
     @media (max-width: 700px) { .run-state, .rule-grid { grid-template-columns: 1fr; } .sop-table { margin-right: -4px; } .sop-table table { min-width: 760px; } .status-table table { min-width: 680px; } }
   </style>
 </head>
@@ -199,6 +205,7 @@
     <nav class="page-nav" aria-label="汇报页面">
       <button class="active" data-page="page-overview">当前进度</button>
       <button data-page="page-flow">SOP 流程</button>
+      <button data-page="page-example">执行示例</button>
       <button data-page="page-analysis">分析口径</button>
       <button data-page="page-interface">接口对齐</button>
       <button data-page="page-capabilities">执行规范</button>
@@ -283,6 +290,37 @@
           <tr><td>08 render_report</td><td>analysis report、CSV、final manifest</td><td>数字与 CSV 一致，路径和 SHA-256 完整，HTML 可独立打开</td><td>analysis HTML 和 final manifest 通过内容寻址检查</td><td>缺产物、数字不一致或页面溢出时阻断。修复输入为报告产物和视觉检查结果。</td><td>ETSI TS 103 281 V1.3.1<br>ITU-T P.1401</td></tr>
         </tbody></table></div>
       </div>
+    </section>
+
+    <section class="section report-page" id="page-example">
+      <div class="section-head"><h2>执行示例</h2><p>先运行指标计划示例，再替换成真实任务输入。</p></div>
+      <div class="grid two">
+        <div class="card">
+          <h3>可直接运行的第一步</h3>
+          <p>在仓库根目录执行下面的脚本。它读取示例任务清单、锁定的 engine capability 和 runtime，输出一个真实的 <code>objective_metric_plan.json</code>。</p>
+          <pre><code>./sure/skills/sure_audio_eval/examples/run-example.sh</code></pre>
+          <p class="muted" style="margin-top:12px">输出位置 <code>.sure/examples/audio-eval-plan/objective_metric_plan.json</code></p>
+        </div>
+        <div class="card">
+          <h3>真实任务的完整入口</h3>
+          <p>提供任务清单、主观原始提交和客观输入后，使用同一条命令推进完整状态机。</p>
+          <pre><code>/sure_audio_eval task_manifest=tasks/example/task_manifest.json \
+  subjective_source=ratings/example/*.csv \
+  objective_source=objective/example/*.jsonl \
+  objective_metrics=pesq,dnsmos \
+  analysis_unit=model_condition \
+  output_dir=runs/example/audio-eval-001</code></pre>
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <div class="section-head"><h3>从输入到产物</h3><p>每一步完成后才允许进入下一步。</p></div>
+        <div class="example-step"><span class="index">01</span><div><strong>resolve_task</strong><small>读取 task version、dataset version、sample IDs、candidate keys、analysis candidate keys、scale、audio version 和 interface contract，写入 <code>task_manifest_resolved.json</code>。</small></div></div>
+        <div class="example-step"><span class="index">02</span><div><strong>resolve_metrics</strong><small>从锁定 capability manifest 找到 <code>pesq</code> 和 <code>dnsmos</code> route，核对方向、类型、reference mode 和 pipeline，写入 <code>objective_metric_plan.json</code>。</small></div></div>
+        <div class="example-step"><span class="index">03</span><div><strong>validate_audio</strong><small>为每个模型条件检查音频可解码性、采样率、声道、时长、版本、响度、True Peak 和 SHA-256，写入 <code>audio_manifest.json</code>。</small></div></div>
+        <div class="example-step"><span class="index">04</span><div><strong>run_objective</strong><small>使用锁定 engine 执行 intrusive 和 non-intrusive route，输出逐条件 objective rows、route plan 和 engine provenance。</small></div></div>
+        <div class="example-step"><span class="index">05</span><div><strong>ingest_subjective 到 render_report</strong><small>保留原始评分，完成最新有效去重、完整组、MOS、SD、t-CI95、主观筛查、模型条件 Pearson / Spearman，最后写出独立 HTML 和 final manifest。</small></div></div>
+      </div>
+      <div class="callout warn" style="margin-top:16px"><strong>示例和正式运行的关系</strong><p>示例脚本实际生成指标计划。完整入口只有在提供真实音频、客观输入和主观提交文件后才会生成正式运行产物。</p></div>
     </section>
 
     <section class="section report-page" id="page-analysis">
