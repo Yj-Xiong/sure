@@ -48,7 +48,10 @@ def finite(value: Any) -> bool:
 def pearson(xs: list[float], ys: list[float]) -> float | None:
     if len(xs) < 2:
         return None
-    mean_x, mean_y = statistics.fmean(xs), statistics.fmean(ys)
+    # Keep the deterministic analyzer runnable on the Python 3.7 runtime used
+    # by the current evaluation image; statistics.fmean arrived in Python 3.8.
+    mean_x = sum(xs) / len(xs)
+    mean_y = sum(ys) / len(ys)
     den_x = math.sqrt(sum((x - mean_x) ** 2 for x in xs))
     den_y = math.sqrt(sum((y - mean_y) ** 2 for y in ys))
     if den_x == 0 or den_y == 0:
@@ -179,7 +182,7 @@ def mos_from_ratings(rows: list[dict[str, str]], excluded: set[tuple[str, str, s
             continue
         if math.isfinite(score):
             groups.setdefault((key[1], key[2]), []).append(score)
-    return {key: statistics.fmean(values) for key, values in groups.items() if values}
+    return {key: sum(values) / len(values) for key, values in groups.items() if values}
 
 
 def read_mos(path: Path) -> dict[tuple[str, str], float]:

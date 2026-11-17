@@ -411,6 +411,23 @@
     <section class="section report-page" id="page-next">
       <div class="section-head"><h2>下一步</h2><p>按风险和完成标准排序。</p></div>
       <div class="card">
+        <div class="section-head"><h3>执行示例</h3><p>当前口径只比较任务清单中冻结的增强模型。</p></div>
+        <p class="muted">下面的命令会从任务清单、主观原始提交和客观结果开始运行；客观结果必须带 engine route、音频哈希和能力清单 provenance。没有真实输入时，命令只用于说明接口，不会生成成功结果。</p>
+        <pre><code>/sure_audio_eval task_manifest=tasks/dereverb28v1/task_manifest.json \
+  subjective_source=ratings/dereverb28v1/*.csv \
+  objective_source=objective/dereverb28v1/*.jsonl \
+  objective_metrics=pesq,estoi,nisqa_noi,squim_mos \
+  analysis_unit=model_condition \
+  output_dir=runs/dereverb28v1/audio-eval-001</code></pre>
+        <div class="table-wrap"><table><thead><tr><th>阶段</th><th>输入</th><th>产物</th></tr></thead><tbody>
+          <tr><td>resolve_task</td><td>task manifest、模型候选清单、interface contract</td><td><code>task_manifest_resolved.json</code></td></tr>
+          <tr><td>resolve_metrics</td><td>指标名、方向、reference mode、锁定 engine capability</td><td><code>objective_metric_plan.json</code></td></tr>
+          <tr><td>validate_audio / run_objective</td><td>模型音频、配对 reference、音频哈希和 engine route</td><td><code>audio_manifest.json</code>、<code>objective_run_report.json</code></td></tr>
+          <tr><td>ingest / aggregate / analysis</td><td>原始评分、完整听评组和共同模型条件</td><td><code>subjective_ingest_report.json</code>、MOS/CI95、<code>analysis_report.json</code></td></tr>
+          <tr><td>render_report</td><td>前述产物和 final manifest</td><td><code>analysis.html</code>、<code>main_agent_run_report.json</code></td></tr>
+        </tbody></table></div>
+      </div>
+      <div class="card">
         <ol class="list" style="counter-reset: step; list-style: none; padding-left: 0">
           <li style="counter-increment: step"><strong>完成一次真实任务集成运行</strong> 从 task manifest 到 final manifest 全链路执行，并人工复核 HTML 中的模型条件相关性。</li>
           <li style="counter-increment: step"><strong>用实际任务运行接口契约</strong> 对齐榜单发起、样本来源、指标配置、单批提交和中断续评等字段，再用实际提交文件做端到端核验。</li>
