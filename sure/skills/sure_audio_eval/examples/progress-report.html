@@ -236,7 +236,8 @@
           <p>一个条件点等于一个 <code>sample_id × model_candidate</code>。先对听评者原始分求 MOS，再与相同条件的客观指标配对。</p>
           <ul class="list">
             <li>每个已确定指标分别计算 Pearson 和 Spearman。</li>
-            <li>输出共同条件点数 <code>n</code> 和模型数 <code>model_count</code>。</li>
+            <li>输出共同条件点数 <code>n</code> 和实际参与分析的模型数 <code>model_count</code>。</li>
+            <li><code>model_count</code> 按当前指标实际配对的模型候选去重计算，缺少完整主客观条件点的模型不会计入。</li>
             <li>保留指标类型、方向、reference mode、pipeline 和 engine provenance。</li>
           </ul>
         </div>
