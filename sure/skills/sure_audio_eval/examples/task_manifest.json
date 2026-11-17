@@ -6,6 +6,7 @@
   "engine_task": "se",
   "sample_ids": ["sample_0001", "sample_0002"],
   "candidate_keys": ["hidden_reference", "unprocessed", "model_a", "model_b"],
+  "analysis_candidate_keys": ["model_a", "model_b"],
   "candidate_roles": {"hidden_reference": "hidden_reference", "unprocessed": "unprocessed", "model_a": "model", "model_b": "model"},
   "scale": {"min": 0, "max": 100, "step": 1, "dimension": "overall_quality"},
   "analysis_unit": "model_condition",

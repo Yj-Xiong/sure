@@ -34,6 +34,7 @@ export const MAIN_FLOW_UNITS: Unit[] = [
 			"engine_task",
 			"sample_ids",
 			"candidate_keys",
+			"analysis_candidate_keys",
 			"candidate_roles",
 			"scale",
 			"audio_policy",

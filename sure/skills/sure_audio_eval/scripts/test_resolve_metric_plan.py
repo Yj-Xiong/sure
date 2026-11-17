@@ -52,6 +52,16 @@ class ResolveMetricPlanTest(unittest.TestCase):
             with self.assertRaisesRegex(PlanError, "no explicit direction"):
                 build_plan(self.args(path, "pesq"))
 
+    def test_rejects_missing_analysis_candidate_whitelist(self) -> None:
+        source = PACKAGE / "examples" / "task_manifest.json"
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "manifest.json"
+            payload = json.loads(source.read_text(encoding="utf-8"))
+            payload.pop("analysis_candidate_keys")
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaisesRegex(PlanError, "analysis_candidate_keys"):
+                build_plan(self.args(path, "pesq"))
+
 
 if __name__ == "__main__":
     unittest.main()

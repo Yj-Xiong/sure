@@ -11,12 +11,22 @@ import tempfile
 import unittest
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parent
 SCRIPT = ROOT / "analyze_conditions.py"
+sys.path.insert(0, str(ROOT))
+from analyze_conditions import screen_ratings
 
 
 class AnalyzeConditionsTest(unittest.TestCase):
+    def test_screening_only_uses_selected_models(self) -> None:
+        rows = []
+        for candidate in ("model_a", "hidden_reference"):
+            scores = [50] * 7 + [100]
+            rows.extend({"sample_id": "s1", "candidate_key": candidate, "listener_id": f"l{index}", "score": str(score)} for index, score in enumerate(scores))
+        flagged, detail = screen_ratings(rows, {"model_a"})
+        self.assertEqual({item["candidate_key"] for item in detail["flagged"]}, {"model_a"})
+        self.assertEqual({item[2] for item in flagged}, {"model_a"})
+
     def test_model_only_before_after_per_metric(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             run = Path(directory)
@@ -26,6 +36,7 @@ class AnalyzeConditionsTest(unittest.TestCase):
                 "task_version": "v1",
                 "dataset_version": "d1",
                 "candidate_keys": ["hidden_reference", "unprocessed", "model_a", "model_b"],
+                "analysis_candidate_keys": ["model_a", "model_b"],
                 "candidate_roles": {"hidden_reference": "hidden_reference", "unprocessed": "unprocessed", "model_a": "model", "model_b": "model"},
                 "excluded_candidates_from_correlation": ["hidden_reference", "unprocessed"],
             }), encoding="utf-8")

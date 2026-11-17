@@ -108,7 +108,20 @@ def model_candidates(manifest: dict[str, Any], excluded: set[str]) -> set[str]:
             candidates = {str(item["candidate_key"]) for item in entries if isinstance(item, dict) and isinstance(item.get("candidate_key"), str)}
     if not candidates:
         return set()
-    return {candidate for candidate in candidates if candidate not in excluded and role_for(candidate, manifest) in {"model", "enhancement", "enhanced_model", "system"}}
+    selected = manifest.get("analysis_candidate_keys")
+    if not isinstance(selected, list) or not selected:
+        raise ValueError("task manifest must declare analysis_candidate_keys")
+    selected_set = {str(item) for item in selected}
+    if not selected_set.issubset(candidates):
+        raise ValueError("analysis_candidate_keys must be a subset of candidate_keys")
+    invalid = {
+        candidate
+        for candidate in selected_set
+        if candidate in excluded or role_for(candidate, manifest) not in {"model", "enhancement", "enhanced_model", "system"}
+    }
+    if invalid:
+        raise ValueError(f"analysis_candidate_keys contain non-model candidates: {sorted(invalid)}")
+    return selected_set
 
 
 def quantile(values: list[float], probability: float) -> float:
@@ -120,11 +133,13 @@ def quantile(values: list[float], probability: float) -> float:
     return ordered[low] + (ordered[high] - ordered[low]) * (index - low)
 
 
-def screen_ratings(rows: list[dict[str, str]]) -> tuple[set[tuple[str, str, str]], dict[str, Any]]:
+def screen_ratings(rows: list[dict[str, str]], model_candidates_set: set[str]) -> tuple[set[tuple[str, str, str]], dict[str, Any]]:
     """Flag individual ratings using subjective values only."""
     groups: dict[tuple[str, str], list[tuple[str, float]]] = {}
     for row in rows:
         if str(row.get("group_complete", "true")).casefold() == "false":
+            continue
+        if str(row.get("candidate_key", "")) not in model_candidates_set:
             continue
         try:
             score = float(row.get("score", ""))
@@ -148,10 +163,12 @@ def screen_ratings(rows: list[dict[str, str]]) -> tuple[set[tuple[str, str, str]
     return flagged, {"rule_version": SCREENING_RULE_VERSION, "rule": "rating-level 3×IQR + n≥8 + median deviation≥20", "objective_independent": True, "flagged_count": len(flagged), "flagged": details, "raw_scores_unchanged": True}
 
 
-def mos_from_ratings(rows: list[dict[str, str]], excluded: set[tuple[str, str, str]]) -> dict[tuple[str, str], float]:
+def mos_from_ratings(rows: list[dict[str, str]], excluded: set[tuple[str, str, str]], model_candidates_set: set[str]) -> dict[tuple[str, str], float]:
     groups: dict[tuple[str, str], list[float]] = {}
     for row in rows:
         if str(row.get("group_complete", "true")).casefold() == "false":
+            continue
+        if str(row.get("candidate_key", "")) not in model_candidates_set:
             continue
         key = (normalize_listener(row.get("listener_id") or row.get("user_id")), row.get("sample_id", ""), row.get("candidate_key", ""))
         if key in excluded:
@@ -238,13 +255,13 @@ def main() -> None:
     context = read_json(args.context)
     excluded = {str(value) for value in manifest.get("excluded_candidates_from_correlation", DEFAULT_EXCLUDED) if isinstance(value, str)} | DEFAULT_EXCLUDED
     declared_models = model_candidates(manifest, excluded)
-    mos_before = read_mos(args.mos)
+    mos_before = {key: value for key, value in read_mos(args.mos).items() if key[1] in declared_models}
     rows: list[dict[str, str]] = []
     if args.subjective and args.subjective.is_file():
         with args.subjective.open(newline="", encoding="utf-8-sig") as handle:
             rows = list(csv.DictReader(handle))
-    flagged, screening_detail = screen_ratings(rows) if rows else (set(), {"rule_version": SCREENING_RULE_VERSION, "rule": "not run; no subjective source supplied", "objective_independent": True, "flagged_count": 0, "flagged": [], "raw_scores_unchanged": True})
-    mos_after = mos_from_ratings(rows, flagged) if rows else dict(mos_before)
+    flagged, screening_detail = screen_ratings(rows, declared_models) if rows else (set(), {"rule_version": SCREENING_RULE_VERSION, "rule": "not run; no subjective source supplied", "objective_independent": True, "flagged_count": 0, "flagged": [], "raw_scores_unchanged": True})
+    mos_after = mos_from_ratings(rows, flagged, declared_models) if rows else dict(mos_before)
     objective, metadata = read_objective(args.objective, args.task_id, plan)
     all_candidates = {key[1] for values in objective.values() for key in values} | {key[1] for key in mos_before}
     if not declared_models:

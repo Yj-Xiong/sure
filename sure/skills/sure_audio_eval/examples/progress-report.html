@@ -112,11 +112,41 @@
     .callout { padding: 15px 17px; border-left: 3px solid var(--blue); border-radius: 2px; color: #36536c; background: var(--blue-soft); }
     .callout.warn { border-color: #d49a2c; color: #73531d; background: var(--amber-soft); }
     .callout.danger { border-color: var(--red); color: #7b3636; background: var(--red-soft); }
+    .run-state { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+    .run-state .state-card { padding: 12px 14px; border: 1px solid var(--line); border-radius: 4px; background: var(--paper); }
+    .state-card .state-label { display: block; margin-bottom: 4px; color: var(--muted); font-size: 11px; }
+    .state-card strong { display: block; margin-bottom: 3px; color: #3e5165; font-size: 14px; overflow-wrap: anywhere; }
+    .state-card small { display: block; color: var(--muted); font-size: 11px; }
+    .state-card .status { margin-top: 7px; }
+    .sop-table table { font-size: 12px; }
+    .sop-table th { white-space: nowrap; }
+    .sop-table td:first-child { width: 130px; color: #315a82; font-weight: 800; white-space: nowrap; }
+    .sop-table td strong { display: block; margin-bottom: 2px; color: #3d5266; }
+    .sop-table td small { display: block; color: var(--muted); line-height: 1.45; }
+    .status-table td:first-child { width: 190px; color: #315a82; font-weight: 700; }
+    .status-table td:nth-child(2) { min-width: 180px; }
+    .status-table code { overflow-wrap: anywhere; }
+    .status-table .status { white-space: nowrap; }
+    .status-table td:last-child { color: var(--muted); }
+    .rule-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+    .rule-card { padding: 14px 16px; border: 1px solid var(--line); border-radius: 4px; background: #fbfaf6; }
+    .rule-card h3 { margin-bottom: 5px; font-size: 14px; }
+    .rule-card p { margin: 0; color: #5f6670; font-size: 12px; }
     .table-wrap { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
     th, td { padding: 10px 9px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
     th { color: #4d6379; background: #f5f8fb; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; }
     tr:last-child td { border-bottom: 0; }
+    .sop-table th:first-child, .sop-table td:first-child { width: 17%; white-space: nowrap; }
+    .sop-table th:last-child, .sop-table td:last-child { width: 24%; }
+    .runtime-panel { display: grid; gap: 12px; }
+    .runtime-row { display: grid; grid-template-columns: 150px minmax(0, 1fr) 96px; gap: 12px; align-items: start; padding: 11px 0; border-bottom: 1px solid var(--line); }
+    .runtime-row:last-child { border-bottom: 0; }
+    .runtime-row strong { font-size: 13px; }
+    .runtime-row small { display: block; color: var(--muted); font-size: 12px; }
+    .runtime-state { justify-self: end; }
+    .missing { color: var(--red); background: var(--red-soft); }
+    .blocked { color: var(--amber); background: var(--amber-soft); }
     code { padding: 2px 5px; border-radius: 5px; color: #285879; background: #edf4f9; font: .92em ui-monospace, SFMono-Regular, Menlo, monospace; }
     .list { display: grid; gap: 9px; margin: 0; padding: 0; list-style: none; }
     .list li { position: relative; padding-left: 20px; }
@@ -146,7 +176,11 @@
     #page-capabilities .list li { padding-left: 16px; }
     #page-analysis .grid.two { grid-template-columns: minmax(0, 1fr); }
     #page-analysis .card { max-width: 900px; }
-    @media (max-width: 560px) { .wrap { padding: 18px 13px 40px; } .hero { padding: 25px 22px; } .grid.four, .grid.three, .grid.two { grid-template-columns: 1fr; } .flow { grid-template-columns: 1fr 1fr; } .flow-step:nth-child(2)::after, .flow-step:nth-child(4)::after, .flow-step:nth-child(6)::after, .flow-step:nth-child(8)::after { display: none; } .notes-stack { grid-template-columns: 1fr; } .process-card { min-height: 390px; padding: 8px; } .orbit-node { width: 88px; padding: 7px 4px; font-size: 10px; } .orbit-center strong { font-size: 20px; } }
+    #page-flow .card { overflow: hidden; }
+    #page-artifacts .card { overflow: hidden; }
+    #page-validation .card { overflow: hidden; }
+    @media (max-width: 560px) { .wrap { padding: 18px 13px 40px; } .hero { padding: 25px 22px; } .grid.four, .grid.three, .grid.two { grid-template-columns: 1fr; } .flow { grid-template-columns: 1fr 1fr; } .flow-step:nth-child(2)::after, .flow-step:nth-child(4)::after, .flow-step:nth-child(6)::after, .flow-step:nth-child(8)::after { display: none; } .notes-stack { grid-template-columns: 1fr; } .process-card { min-height: 390px; padding: 8px; } .orbit-node { width: 88px; padding: 7px 4px; font-size: 10px; } .orbit-center strong { font-size: 20px; } .runtime-row { grid-template-columns: 1fr; gap: 4px; } .runtime-state { justify-self: start; } .sop-table th:first-child, .sop-table td:first-child, .sop-table th:last-child, .sop-table td:last-child { width: auto; white-space: normal; } }
+    @media (max-width: 700px) { .run-state, .rule-grid { grid-template-columns: 1fr; } .sop-table { margin-right: -4px; } .sop-table table { min-width: 760px; } .status-table table { min-width: 680px; } }
   </style>
 </head>
 <body>
@@ -157,7 +191,7 @@
       <div class="meta">
         <span>Skill /sure_audio_eval</span>
         <span>分支 harness-tui-agent</span>
-        <span>分析单位 sample × model candidate</span>
+      <span>分析单位 sample 与 model candidate</span>
         <span>状态 本地提交和远端分支已同步</span>
       </div>
     </header>
@@ -174,7 +208,7 @@
     </nav>
 
     <section class="section report-page active" id="page-overview">
-      <div class="section-head"><h2>当前进度</h2><p>进度基于当前实现和已完成的定向核验。</p></div>
+      <div class="section-head"><h2>当前进度</h2><p>页面展示实现核验和当前运行状态，未绑定的运行输入不会被标记为完成。</p></div>
       <div class="overview-grid">
         <div class="process-card">
           <div class="process-orbit">
@@ -204,11 +238,20 @@
           </div>
         </div>
         <div class="notes-stack">
-          <div class="note-card blue-note"><span>01 进展概览</span><strong>8 个阶段已形成闭环</strong><p>任务、指标、音频、客观、主观、统计、分析和报告都有清晰的输入和输出。</p></div>
-          <div class="note-card blue-note"><span>02 当前结果</span><strong>6 / 6 Python 定向测试通过</strong><p>模型条件相关性、指标计划和 HTML 产物均已有对应测试。</p></div>
-          <div class="note-card blue-note"><span>03 当前结果</span><strong>锁定 engine 已完成一次真实计算</strong><p>engine checkout、Python 3.11 runtime、锁文件和 capability manifest 已核对，SI-SDR 路由 smoke run 成功。</p></div>
-          <div class="mini-stats"><div><b>43</b><span>Harness 文件</span></div><div><b>1</b><span>真实路由已核验</span></div><div><b>已同步</b><span>远端分支</span></div></div>
+          <div class="note-card amber-note"><span>当前运行状态</span><strong>blocked 等待任务输入</strong><p>当前页面没有绑定一次正式评测运行。示例 manifest 和 smoke 结果不计入本次运行状态。</p></div>
+          <div class="note-card blue-note"><span>实现核验</span><strong>Harness gate 已具备</strong><p>脚本注册、上下文冻结、指标计划、音频校验、主观汇总、相关性和报告 gate 已有对应实现。</p></div>
+          <div class="note-card blue-note"><span>执行现场</span><strong>下一步从 resolve_task 开始</strong><p>需要输入 task manifest、样本音频和主观原始提交，才能生成正式产物并推进后续阶段。</p></div>
         </div>
+      </div>
+      <div class="run-state" aria-label="当前运行输入状态">
+        <div class="state-card"><span class="state-label">task version</span><strong>missing</strong><small>未绑定 task_manifest_resolved.json</small><span class="status block">blocked</span></div>
+        <div class="state-card"><span class="state-label">dataset version</span><strong>missing</strong><small>未绑定正式数据集版本</small><span class="status block">blocked</span></div>
+        <div class="state-card"><span class="state-label">audio version</span><strong>missing</strong><small>未生成 audio_manifest.json</small><span class="status block">blocked</span></div>
+        <div class="state-card"><span class="state-label">objective metric plan</span><strong>missing</strong><small>示例计划不属于正式运行</small><span class="status block">blocked</span></div>
+        <div class="state-card"><span class="state-label">subjective records</span><strong>raw missing</strong><small>未收到可核验的原始提交文件</small><span class="status block">blocked</span></div>
+        <div class="state-card"><span class="state-label">valid records</span><strong>missing</strong><small>尚未完成字段、范围和去重校验</small><span class="status block">blocked</span></div>
+        <div class="state-card"><span class="state-label">complete groups</span><strong>missing</strong><small>尚未识别完整听评组</small><span class="status block">blocked</span></div>
+        <div class="state-card"><span class="state-label">current gate</span><strong>resolve_task</strong><small>修复输入为正式任务清单</small><span class="status wait">waiting</span></div>
       </div>
     </section>
 
@@ -222,9 +265,23 @@
           <div class="flow-step"><span class="index">04</span><strong>run_objective</strong><small>执行或严格适配客观结果</small></div>
           <div class="flow-step"><span class="index">05</span><strong>ingest_subjective</strong><small>保留原始分并做最新有效去重</small></div>
           <div class="flow-step"><span class="index">06</span><strong>aggregate_subjective</strong><small>生成 MOS、SD、t-CI95</small></div>
-          <div class="flow-step"><span class="index">07</span><strong>joint_analysis</strong><small>输出模型条件 Pearson / Spearman</small></div>
+          <div class="flow-step"><span class="index">07</span><strong>joint_analysis</strong><small>主观筛查后输出模型条件 Pearson / Spearman</small></div>
           <div class="flow-step"><span class="index">08</span><strong>render_report</strong><small>生成 HTML、final manifest 和 run report</small></div>
         </div>
+      </div>
+      <div class="card sop-table" style="margin-top:16px">
+        <div class="section-head"><h3>阶段核验表</h3><p>每个阶段有输入、检查、放行条件和可恢复诊断。screening 是 joint_analysis gate 内的独立子步骤。</p></div>
+        <div class="table-wrap"><table><thead><tr><th>阶段</th><th>输入</th><th>检查</th><th>完成条件</th><th>失败诊断与修复输入</th><th>标准依据</th></tr></thead><tbody>
+          <tr><td>01 resolve_task</td><td><code>task_manifest</code><small>task、dataset、sample、candidate、analysis candidate、scale、audio version</small></td><td>白名单、模型候选、候选角色、版本和接口契约是否完整</td><td><code>task_manifest_resolved.json</code> 可读且上下文冻结</td><td>缺字段或版本漂移时阻断。修复输入为任务清单、模型候选清单和接口契约。</td><td>ITU-R BS.1284-2<br>P.808</td></tr>
+          <tr><td>02 resolve_metrics</td><td><code>task_manifest_resolved.json</code><small>使用已冻结模型候选，用户选择指标集合</small></td><td>指标类型、方向、route、reference mode、适用音频和 capability 是否一致</td><td><code>objective_metric_plan.json</code> 与 task manifest 的模型候选集合一致</td><td>route 未锁定或指标不在 capability 时阻断。修复输入为指标选择和 engine manifest。</td><td>ITU-R BS.1284-2<br>P.808</td></tr>
+          <tr><td>03 validate_audio</td><td>任务音频、reference、candidate 文件</td><td>解码、采样率、声道、时长、版本、SHA-256、响度和 True Peak</td><td><code>audio_manifest.json</code> 覆盖每个条件点</td><td>配对缺失、hash 不符或版本不符时阻断。修复输入为对应版本音频。</td><td>ITU-R BS.1770</td></tr>
+          <tr><td>04 run_objective</td><td><code>objective_metric_plan.json</code><br><code>audio_manifest.json</code></td><td>intrusive 与 non-intrusive 输入分开，route 和 runtime lock 可验证</td><td>objective rows 含 metric、value、direction、reference、audio hash 和 engine provenance</td><td>engine、runtime 或 capability 不可验证时阻断。修复输入为锁定 engine checkout 和运行时。</td><td>ITU-T P.1401<br>NIST Statistical Handbook<br>指标官方定义</td></tr>
+          <tr><td>05 ingest_subjective</td><td>原始评分文件、任务清单、音频 hash</td><td>字段、量表、时间、来源、manifest 白名单和最新有效去重</td><td>原始记录归档，拒绝原因和有效记录清单可追溯</td><td>字段缺失、分值越界或 hash 不符时保留拒绝行。修复输入为原始提交文件。</td><td>ITU-T P.1401</td></tr>
+          <tr><td>06 aggregate_subjective</td><td>有效评分与完整听评组</td><td>按 sample 与 model candidate 聚合，缺失组不补齐</td><td>condition summary 含 n、MOS、SD、t-CI95 和 missing</td><td>组不完整或 n 小于 2 时标记不可估计。修复输入为完整有效评分。</td><td>ITU-T P.1401<br>NIST Statistical Handbook</td></tr>
+          <tr><td>07 joint_analysis</td><td>condition summary、objective rows、screening artifacts</td><td>只配对模型条件，指标集合和候选集合与 plan、manifest 一致</td><td>每个指标有 model condition n、Pearson、Spearman 和 provenance</td><td>条件点或 hash 不一致时阻断。修复输入为对应分析表和筛查标记清单。</td><td>ITU-T P.1401<br>NIST Statistical Handbook</td></tr>
+          <tr><td>07a screening</td><td>主观原始分、模型候选清单</td><td>只读主观评分分布，不读 objective、残差或相关系数</td><td>before 和 after 同时保留，保存 flagged list。高杠杆点只做诊断。</td><td>规则输入不完整时阻断。修复输入为主观评分和筛查规则版本。</td><td>ETSI TS 103 281 V1.3.1</td></tr>
+          <tr><td>08 render_report</td><td>analysis report、CSV、final manifest</td><td>数字与 CSV 一致，路径和 SHA-256 完整，HTML 可独立打开</td><td>analysis HTML 和 final manifest 通过内容寻址检查</td><td>缺产物、数字不一致或页面溢出时阻断。修复输入为报告产物和视觉检查结果。</td><td>ETSI TS 103 281 V1.3.1<br>ITU-T P.1401</td></tr>
+        </tbody></table></div>
       </div>
     </section>
 
@@ -233,7 +290,7 @@
       <div class="grid two">
         <div class="card">
           <h3>主相关性单位</h3>
-          <p>一个条件点等于一个 <code>sample_id × model_candidate</code>。先对听评者原始分求 MOS，再与相同条件的客观指标配对。</p>
+          <p>一个条件点等于一个 <code>sample_id</code> 与 <code>model_candidate</code> 的组合。先对听评者原始分求 MOS，再与相同条件的客观指标配对。</p>
           <ul class="list">
             <li>每个已确定指标分别计算 Pearson 和 Spearman。</li>
             <li>输出共同条件点数 <code>n</code> 和实际参与分析的模型数 <code>model_count</code>。</li>
@@ -241,6 +298,19 @@
             <li>保留指标类型、方向、reference mode、pipeline 和 engine provenance。</li>
           </ul>
         </div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <div class="section-head"><h3>模型条件点状态</h3><p>没有正式运行产物时显示 missing。</p></div>
+        <div class="table-wrap status-table"><table><thead><tr><th>指标</th><th>模型条件点数量</th><th>实际模型数</th><th>状态</th><th>来源</th></tr></thead><tbody>
+          <tr><td><code>metric plan</code></td><td>missing</td><td>missing</td><td><span class="status block">blocked</span></td><td>未绑定正式 objective rows 和 condition summary</td></tr>
+          <tr><td><code>per metric</code></td><td>missing</td><td>missing</td><td><span class="status block">blocked</span></td><td>正式运行后从 CSV 与分析表读取</td></tr>
+        </tbody></table></div>
+      </div>
+      <div class="rule-grid">
+        <div class="rule-card"><h3>筛查依据</h3><p>筛查只读取模型候选的主观评分分布。它不读取客观分数、回归残差或相关系数，也不因为相关性变化自动删除记录。</p></div>
+        <div class="rule-card"><h3>筛查产物</h3><p>筛查前后结果同时保存，并写入 flagged list 和 rule version。高杠杆点只作为诊断信息，不能直接改变分析样本。</p></div>
+        <div class="rule-card"><h3>模型候选集合</h3><p><code>analysis_candidate_keys</code> 在任务冻结时由用户决定。每个指标只统计实际存在完整 MOS 和 objective 配对的模型。</p></div>
+        <div class="rule-card"><h3>放行条件</h3><p>analysis report 的指标集合必须与 objective metric plan 完全一致，模型候选必须与 task manifest 一致，所有条件点必须能追溯到音频版本和 SHA-256。</p></div>
       </div>
     </section>
 
@@ -258,13 +328,13 @@
     <section class="section report-page" id="page-capabilities">
       <div class="section-head"><h2>执行规范</h2><p>每一步都有明确的输入、检查和放行条件。</p></div>
       <div class="grid three">
-        <div class="card"><h3>任务先锁定</h3><p class="muted">先确定本次评测到底比较什么。</p><ul class="list"><li>冻结任务版本、数据版本、音频版本和样本清单。</li><li>明确模型、隐藏参考和未处理输入的角色。</li><li>固定评分量表和评分步长。</li></ul></div>
-        <div class="card"><h3>指标先确定</h3><p class="muted">没有指标计划，不开始客观评分。</p><ul class="list"><li>逐项写明指标类型和方向。</li><li>明确是否需要同一样本的参考音频。</li><li>只使用当前锁定 engine 支持的 route。</li></ul></div>
+        <div class="card"><h3>任务先锁定</h3><p class="muted">先确定本次评测到底比较什么。</p><ul class="list"><li>冻结任务版本、数据版本、音频版本和样本清单。</li><li>冻结参与主相关性的 <code>analysis_candidate_keys</code>。</li><li>明确模型、隐藏参考和未处理输入的角色。</li><li>固定评分量表和评分步长。</li></ul></div>
+        <div class="card"><h3>指标先确定</h3><p class="muted">没有指标计划，不开始客观评分。</p><ul class="list"><li>逐项写明指标类型和方向。</li><li>明确是否需要同一样本的参考音频。</li><li>使用任务阶段已冻结的模型候选，只锁定指标和执行 route。</li></ul></div>
         <div class="card"><h3>音频先核验</h3><p class="muted">先证明输入音频就是任务要求的音频。</p><ul class="list"><li>检查文件能否解码、采样率、声道和时长。</li><li>检查音频版本和文件 SHA-256。</li><li>记录响度处理和 True Peak 信息。</li></ul></div>
         <div class="card"><h3>原始评分不覆盖</h3><p class="muted">原始提交保留，整理结果另写文件。</p><ul class="list"><li>每条评分带有听评者、会话、设备、批次和时间。</li><li>相同任务、听评者、样本和候选只保留最新有效记录。</li><li>无效行保留拒绝原因。</li></ul></div>
         <div class="card"><h3>完整组才聚合</h3><p class="muted">缺一项候选，就不把这一组送入主分析。</p><ul class="list"><li>完整听评组才计算 MOS。</li><li>每个样本和候选输出人数、MOS、SD 和 t-CI95。</li><li>人数少于 2 时不估计 CI95。</li></ul></div>
-        <div class="card"><h3>只分析模型条件</h3><p class="muted">相关性回答模型方法与主观感受是否一致。</p><ul class="list"><li>分析单位是 sample 和 model candidate。</li><li>隐藏参考和未处理输入留在记录中，但不进入相关性。</li><li>每个指标分别输出 Pearson 和 Spearman。</li></ul></div>
-        <div class="card"><h3>筛查只看主观分</h3><p class="muted">筛查不能被客观分数或相关性结果影响。</p><ul class="list"><li>只根据主观评分分布标记异常。</li><li>不因为相关性变高而删除评分。</li><li>保留筛查前和筛查后结果。</li></ul></div>
+        <div class="card"><h3>只分析模型条件</h3><p class="muted">相关性回答模型方法与主观感受是否一致。</p><ul class="list"><li>分析单位是 sample 和 model candidate。</li><li>只使用任务冻结的 <code>analysis_candidate_keys</code>。</li><li>隐藏参考和未处理输入留在记录中，但不进入相关性。</li><li>每个指标分别输出 Pearson 和 Spearman。</li></ul></div>
+        <div class="card"><h3>筛查只看主观分</h3><p class="muted">筛查不能被客观分数或相关性结果影响。</p><ul class="list"><li>只根据模型候选的主观评分分布标记异常。</li><li>规则使用至少 8 条评分、IQR 三倍和中位数偏离 20 分条件，属于 Harness screening.v1 规则。</li><li>保留筛查前、筛查后和 flagged list。</li><li>高杠杆点只做诊断，不因相关性变化自动删除。</li></ul></div>
         <div class="card"><h3>失败停在当前阶段</h3><p class="muted">发现问题就留下诊断，修复后从 checkpoint 继续。</p><ul class="list"><li>不使用旧版本结果补齐当前运行。</li><li>不静默更换指标、模型、engine 或数据版本。</li><li>重复无进展动作由 loop guard 停止。</li></ul></div>
         <div class="card"><h3>标准按阶段使用</h3><p class="muted">引用用于界定工作边界。</p><ul class="list"><li>任务与评分对象 BS.1284-2、P.808。</li><li>音频条件 BS.1770。</li><li>MOS、CI95 和相关性 P.1401、NIST Statistical Handbook。</li><li>筛查和报告组织 ETSI TS 103 281 V1.3.1。</li></ul></div>
       </div>
@@ -281,18 +351,32 @@
           <li><strong>audio_manifest.json</strong><small>路径、格式、采样率、声道、时长、响度、True Peak 和 SHA-256</small></li>
           <li><strong>objective_run_report.json</strong><small>逐条件客观分、engine route、pipeline 和失败诊断</small></li>
           <li><strong>subjective_ingest_report.json</strong><small>原始来源 hash、最新有效去重、拒绝行和完整组</small></li>
-          <li><strong>condition_summary.json</strong><small>sample × candidate 的 MOS、SD、t-CI95 和缺失情况</small></li>
+          <li><strong>condition_summary.json</strong><small>sample 与 candidate 的 MOS、SD、t-CI95 和缺失情况</small></li>
           <li><strong>analysis_report.json</strong><small>model-condition correlation、screening before/after 和 provenance</small></li>
           <li><strong>analysis.html / final_manifest.json / main_agent_run_report.json</strong><small>独立报告、内容寻址清单和运行终态</small></li>
         </ul>
       </div>
+      <div class="card" style="margin-top:16px">
+        <div class="section-head"><h3>正式运行产物状态</h3><p>当前运行尚未绑定输入，路径和哈希保持 missing。</p></div>
+        <div class="table-wrap status-table"><table><thead><tr><th>产物</th><th>路径</th><th>SHA-256</th><th>行数</th><th>状态</th></tr></thead><tbody>
+          <tr><td>任务清单</td><td><code>artifacts/task_manifest_resolved.json</code></td><td>missing</td><td>missing</td><td><span class="status block">blocked</span></td></tr>
+          <tr><td>指标计划</td><td><code>artifacts/objective_metric_plan.json</code></td><td>missing</td><td>missing</td><td><span class="status block">blocked</span></td></tr>
+          <tr><td>音频清单</td><td><code>artifacts/audio_manifest.json</code></td><td>missing</td><td>missing</td><td><span class="status block">blocked</span></td></tr>
+          <tr><td>主观有效记录</td><td><code>artifacts/subjective_ingest_report.json</code></td><td>missing</td><td>missing</td><td><span class="status block">blocked</span></td></tr>
+          <tr><td>MOS CSV</td><td><code>artifacts/mos.csv</code></td><td>missing</td><td>missing</td><td><span class="status block">blocked</span></td></tr>
+          <tr><td>CI95 CSV</td><td><code>artifacts/ci95.csv</code></td><td>missing</td><td>missing</td><td><span class="status block">blocked</span></td></tr>
+          <tr><td>分析报告</td><td><code>artifacts/analysis_report.json</code></td><td>missing</td><td>missing</td><td><span class="status block">blocked</span></td></tr>
+          <tr><td>正式 HTML</td><td><code>artifacts/analysis.html</code></td><td>missing</td><td>missing</td><td><span class="status block">blocked</span></td></tr>
+          <tr><td>最终清单</td><td><code>artifacts/final_manifest.json</code></td><td>missing</td><td>missing</td><td><span class="status block">blocked</span></td></tr>
+        </tbody></table></div>
+      </div>
     </section>
 
     <section class="section report-page" id="page-validation">
-      <div class="section-head"><h2>当前状态</h2><p>以下是这次 Harness 工作的完成情况。</p></div>
+      <div class="section-head"><h2>当前状态</h2><p>实现检查与正式运行 gate 分开记录。</p></div>
       <div class="grid two">
         <div class="card">
-          <h3><span class="status pass">已通过</span></h3>
+          <h3><span class="status pass">实现检查</span></h3>
           <div class="table-wrap"><table><thead><tr><th>检查</th><th>结果</th></tr></thead><tbody>
             <tr><td>Python scripts 编译</td><td>通过</td></tr>
             <tr><td>Metric plan / correlation / render 单元测试</td><td>6 / 6 通过</td></tr>
@@ -300,14 +384,27 @@
             <tr><td><code>npm run check:ts-imports</code></td><td>通过</td></tr>
             <tr><td>HTML + final manifest smoke</td><td>通过</td></tr>
             <tr><td>锁定 engine SI-SDR smoke</td><td>通过，2 条条件记录</td></tr>
-            <tr><td>本地提交</td><td><code>73974be</code></td></tr>
+            <tr><td>本地分支</td><td><code>harness-tui-agent</code> 已同步远端</td></tr>
           </tbody></table></div>
         </div>
         <div class="card">
-          <h3><span class="status wait">待完成事项</span></h3>
-          <div class="callout pass"><strong>TypeScript gate 已通过</strong><p><code>npm run check:sure-hooks</code> 和 <code>npm run check:ts-imports</code> 已通过。</p></div>
-          <div class="callout" style="margin-top:12px"><strong>下一步是完整任务运行</strong><p>真实路由已完成最小 smoke。还需用完整任务清单执行全链路，并核对多指标、音频条件和最终报告。</p></div>
+          <h3><span class="status block">正式运行 gate</span></h3>
+          <div class="callout danger"><strong>当前阻断点是 resolve_task</strong><p>没有绑定正式 task manifest、dataset version、audio version 和主观原始提交，因此后续阶段不能标记为完成。</p></div>
+          <div class="callout" style="margin-top:12px"><strong>下一步修复输入</strong><p><code>task_manifest.json</code>、样本音频及 reference、主观原始提交文件。输入通过后再生成 task、metric、audio 和 subjective artifacts。</p></div>
         </div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <div class="section-head"><h3>阶段 gate</h3><p>失败时保留诊断，修复后从对应 checkpoint 继续。</p></div>
+        <div class="table-wrap status-table"><table><thead><tr><th>当前阶段</th><th>输入产物</th><th>状态</th><th>失败原因</th><th>下一步修复输入</th></tr></thead><tbody>
+          <tr><td>resolve_task</td><td><code>task_manifest.json</code></td><td><span class="status block">blocked</span></td><td>正式任务清单未绑定</td><td>task、dataset、sample、candidate、scale、audio version</td></tr>
+          <tr><td>resolve_metrics</td><td><code>task_manifest_resolved.json</code></td><td><span class="status block">blocked</span></td><td>上游任务尚未冻结</td><td>用户确认模型候选、指标集合和 route</td></tr>
+          <tr><td>validate_audio</td><td><code>objective_metric_plan.json</code></td><td><span class="status block">blocked</span></td><td>没有正式音频清单</td><td>配对 reference 和 candidate audio</td></tr>
+          <tr><td>run_objective</td><td><code>audio_manifest.json</code></td><td><span class="status block">blocked</span></td><td>上游输入缺失</td><td>锁定 engine、runtime 和 capability manifest</td></tr>
+          <tr><td>ingest_subjective</td><td>原始评分文件</td><td><span class="status block">blocked</span></td><td>没有可核验提交来源</td><td>原始评分文件和来源 hash</td></tr>
+          <tr><td>aggregate_subjective</td><td><code>subjective_ingest_report.json</code></td><td><span class="status block">blocked</span></td><td>没有有效完整组</td><td>完整听评组与拒绝原因清单</td></tr>
+          <tr><td>joint_analysis</td><td><code>mos.csv</code><br><code>ci95.csv</code><br><code>objective_scores.jsonl</code></td><td><span class="status block">blocked</span></td><td>没有 objective rows 和模型条件点</td><td>同一版本的主客观条件表</td></tr>
+          <tr><td>render_report</td><td><code>analysis_report.json</code></td><td><span class="status block">blocked</span></td><td>没有正式分析产物</td><td>analysis report、CSV、final manifest 和视觉检查结果</td></tr>
+        </tbody></table></div>
       </div>
     </section>
 
@@ -316,8 +413,19 @@
       <div class="card">
         <ol class="list" style="counter-reset: step; list-style: none; padding-left: 0">
           <li style="counter-increment: step"><strong>完成一次真实任务集成运行</strong> 从 task manifest 到 final manifest 全链路执行，并人工复核 HTML 中的模型条件相关性。</li>
-          <li style="counter-increment: step"><strong>接入当前主观评测接口契约</strong> 对齐榜单发起、样本来源、指标配置、单批提交和中断续评等字段，再用实际提交文件做端到端核验。</li>
+          <li style="counter-increment: step"><strong>用实际任务运行接口契约</strong> 对齐榜单发起、样本来源、指标配置、单批提交和中断续评等字段，再用实际提交文件做端到端核验。</li>
         </ol>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <div class="section-head"><h3>发布前核验</h3><p>以下项目全部通过后才允许把运行状态写成 complete。</p></div>
+        <ul class="list">
+          <li>分析表的指标集合与 <code>objective_metric_plan.json</code> 完全一致。</li>
+          <li>模型候选集合与 <code>task_manifest_resolved.json</code> 一致。</li>
+          <li>每个条件点都能追溯到 audio version 和 audio SHA-256。</li>
+          <li>HTML 中的数字与 MOS、CI95 CSV 一致，路径和 SHA-256 已写入 final manifest。</li>
+          <li>standalone HTML 可以独立打开，桌面和窄屏均无遮挡、无横向溢出和不可读表格。</li>
+          <li>screening before 和 after、flagged list 以及高杠杆诊断记录同时存在。</li>
+        </ul>
       </div>
     </section>
 

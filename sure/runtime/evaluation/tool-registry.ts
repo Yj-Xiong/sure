@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, mkdirSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { canonicalJson, hashJson } from "./context.ts";
 
@@ -22,20 +22,109 @@ export interface ToolRegistry {
 }
 
 export const DEFAULT_EVALUATION_TOOLS: EvaluationTool[] = [
-	{ id: "validate_manifest", unit: "resolve_task", script: "scripts/check_audio_eval.py", inputs: ["task_manifest.json"], outputs: ["task_manifest_resolved.json"], mode: "deterministic", requires_reference: false },
-	{ id: "resolve_metric_plan", unit: "resolve_metrics", script: "scripts/resolve_metric_plan.py", inputs: ["task_manifest_resolved.json", "evaluation_context.json", "engine-capabilities.generated.json", "references/STANDARDS.md"], outputs: ["objective_metric_plan.json"], mode: "deterministic", requires_reference: false },
-	{ id: "validate_audio", unit: "validate_audio", script: "scripts/check_audio_eval.py", inputs: ["audio_manifest.json"], outputs: ["audio_validation.json"], mode: "deterministic", requires_reference: false },
-	{ id: "score_objective", unit: "run_objective", script: "scripts/run_objective.py", inputs: ["audio_manifest.json", "objective_route_plan.json"], outputs: ["objective_scores.jsonl", "objective_run_report.json"], mode: "deterministic", requires_reference: false },
-	{ id: "ingest_subjective", unit: "ingest_subjective", script: "scripts/ingest_subjective.py", inputs: ["task_manifest.json", "subjective_sources"], outputs: ["subjective_raw_manifest.json", "subjective_dedup.csv"], mode: "deterministic", requires_reference: false },
-	{ id: "aggregate_mos", unit: "aggregate_subjective", script: "scripts/aggregate_subjective.py", inputs: ["subjective_dedup.csv"], outputs: ["condition_mos.csv", "condition_ci95.csv"], mode: "deterministic", requires_reference: false },
-	{ id: "screen_ratings", unit: "screen_sensitivity", script: "scripts/screen_ratings.py", inputs: ["subjective_dedup.csv", "condition_mos.csv"], outputs: ["screening_report.json"], mode: "deterministic", requires_reference: false },
-	{ id: "analyze_conditions", unit: "joint_analysis", script: "scripts/analyze_conditions.py", inputs: ["condition_mos.csv", "objective_scores.jsonl"], outputs: ["analysis_report.json"], mode: "deterministic", requires_reference: false },
-	{ id: "render_report", unit: "render_report", script: "scripts/render_report.py", inputs: ["analysis_report.json"], outputs: ["analysis.html", "final_manifest.json", "main_agent_run_report.json"], mode: "deterministic", requires_reference: false },
-	{ id: "publish_release", unit: "render_report", script: "scripts/check_audio_eval.py", inputs: ["analysis.html", "final_manifest.json"], outputs: ["main_agent_run_report.json"], mode: "deterministic", requires_reference: false },
+	{
+		id: "validate_manifest",
+		unit: "resolve_task",
+		script: "scripts/check_audio_eval.py",
+		inputs: ["task_manifest.json"],
+		outputs: ["task_manifest_resolved.json"],
+		mode: "deterministic",
+		requires_reference: false,
+	},
+	{
+		id: "resolve_metric_plan",
+		unit: "resolve_metrics",
+		script: "scripts/resolve_metric_plan.py",
+		inputs: [
+			"task_manifest_resolved.json",
+			"evaluation_context.json",
+			"engine-capabilities.generated.json",
+			"references/STANDARDS.md",
+		],
+		outputs: ["objective_metric_plan.json"],
+		mode: "deterministic",
+		requires_reference: false,
+	},
+	{
+		id: "validate_audio",
+		unit: "validate_audio",
+		script: "scripts/check_audio_eval.py",
+		inputs: ["audio_manifest.json"],
+		outputs: ["audio_validation.json"],
+		mode: "deterministic",
+		requires_reference: false,
+	},
+	{
+		id: "score_objective",
+		unit: "run_objective",
+		script: "scripts/run_objective.py",
+		inputs: ["audio_manifest.json", "objective_route_plan.json"],
+		outputs: ["objective_scores.jsonl", "objective_run_report.json"],
+		mode: "deterministic",
+		requires_reference: false,
+	},
+	{
+		id: "ingest_subjective",
+		unit: "ingest_subjective",
+		script: "scripts/ingest_subjective.py",
+		inputs: ["task_manifest.json", "subjective_sources"],
+		outputs: ["subjective_raw_manifest.json", "subjective_dedup.csv"],
+		mode: "deterministic",
+		requires_reference: false,
+	},
+	{
+		id: "aggregate_mos",
+		unit: "aggregate_subjective",
+		script: "scripts/aggregate_subjective.py",
+		inputs: ["subjective_dedup.csv"],
+		outputs: ["condition_mos.csv", "condition_ci95.csv"],
+		mode: "deterministic",
+		requires_reference: false,
+	},
+	{
+		id: "screen_ratings",
+		unit: "joint_analysis",
+		script: "scripts/screen_ratings.py",
+		inputs: ["subjective_dedup.csv", "condition_mos.csv", "task_manifest_resolved.json"],
+		outputs: ["screening_report.json"],
+		mode: "deterministic",
+		requires_reference: false,
+	},
+	{
+		id: "analyze_conditions",
+		unit: "joint_analysis",
+		script: "scripts/analyze_conditions.py",
+		inputs: ["condition_mos.csv", "objective_scores.jsonl"],
+		outputs: ["analysis_report.json"],
+		mode: "deterministic",
+		requires_reference: false,
+	},
+	{
+		id: "render_report",
+		unit: "render_report",
+		script: "scripts/render_report.py",
+		inputs: ["analysis_report.json"],
+		outputs: ["analysis.html", "final_manifest.json", "main_agent_run_report.json"],
+		mode: "deterministic",
+		requires_reference: false,
+	},
+	{
+		id: "publish_release",
+		unit: "render_report",
+		script: "scripts/check_audio_eval.py",
+		inputs: ["analysis.html", "final_manifest.json"],
+		outputs: ["main_agent_run_report.json"],
+		mode: "deterministic",
+		requires_reference: false,
+	},
 ];
 
 function registryPayload(tools: EvaluationTool[]): Omit<ToolRegistry, "registry_fingerprint"> {
-	return { schema: TOOL_REGISTRY_SCHEMA, version: "1.0.0", tools: [...tools].sort((a, b) => a.id.localeCompare(b.id)) };
+	return {
+		schema: TOOL_REGISTRY_SCHEMA,
+		version: "1.0.0",
+		tools: [...tools].sort((a, b) => a.id.localeCompare(b.id)),
+	};
 }
 
 export function validateToolRegistry(registry: ToolRegistry): string[] {
@@ -50,8 +139,10 @@ export function validateToolRegistry(registry: ToolRegistry): string[] {
 		}
 		if (ids.has(tool.id)) errors.push(`Duplicate tool id: ${tool.id}`);
 		ids.add(tool.id);
-		if (!tool.unit || !tool.script || !Array.isArray(tool.outputs) || tool.outputs.length === 0) errors.push(`Tool ${tool.id} lacks unit, script, or outputs.`);
-		if (!tool.script.startsWith("scripts/")) errors.push(`Tool ${tool.id} script must stay below scripts/: ${tool.script}`);
+		if (!tool.unit || !tool.script || !Array.isArray(tool.outputs) || tool.outputs.length === 0)
+			errors.push(`Tool ${tool.id} lacks unit, script, or outputs.`);
+		if (!tool.script.startsWith("scripts/"))
+			errors.push(`Tool ${tool.id} script must stay below scripts/: ${tool.script}`);
 	}
 	const expected = hashJson(registryPayload(registry.tools));
 	if (registry.registry_fingerprint !== expected) errors.push(`Registry fingerprint mismatch: expected ${expected}`);
@@ -89,5 +180,9 @@ export function registeredScript(registry: ToolRegistry, script: string, unit: s
 }
 
 export function registrySummary(registry: ToolRegistry): string {
-	return canonicalJson({ schema: registry.schema, version: registry.version, tools: registry.tools.map((tool) => tool.id) });
+	return canonicalJson({
+		schema: registry.schema,
+		version: registry.version,
+		tools: registry.tools.map((tool) => tool.id),
+	});
 }

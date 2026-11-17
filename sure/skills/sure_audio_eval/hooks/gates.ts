@@ -148,6 +148,7 @@ export function semanticGate(unitId: string, artifact: unknown, ctx: SureHookCon
 	if (unitId === "resolve_task") {
 		const samples = artifact.sample_ids;
 		const candidates = artifact.candidate_keys;
+		const analysisCandidates = artifact.analysis_candidate_keys;
 		if (
 			!string(artifact.task_id) ||
 			!string(artifact.task_version) ||
@@ -155,6 +156,7 @@ export function semanticGate(unitId: string, artifact: unknown, ctx: SureHookCon
 			!string(artifact.engine_task) ||
 			!Array.isArray(samples) ||
 			!Array.isArray(candidates) ||
+			!Array.isArray(analysisCandidates) ||
 			!isRecord(artifact.candidate_roles)
 		) {
 			return {
@@ -175,12 +177,31 @@ export function semanticGate(unitId: string, artifact: unknown, ctx: SureHookCon
 		if (
 			new Set(samples).size !== samples.length ||
 			new Set(candidates).size !== candidates.length ||
+			new Set(analysisCandidates).size !== analysisCandidates.length ||
 			candidates.some((candidate) => !string(candidateRoles[String(candidate)]))
 		) {
 			return {
 				ok: false,
 				reason: "duplicate whitelist entry",
 				repair: "Remove duplicate sample_ids or candidate_keys; do not silently merge them.",
+			};
+		}
+		const candidateSet = new Set(candidates.map(String));
+		if (
+			analysisCandidates.some(
+				(candidate) =>
+					!string(candidate) ||
+					!candidateSet.has(String(candidate)) ||
+					!["model", "method", "enhancement", "enhanced_model", "system"].includes(
+						String(candidateRoles[String(candidate)]).toLowerCase(),
+					),
+			)
+		) {
+			return {
+				ok: false,
+				reason: "analysis candidate whitelist is invalid",
+				repair:
+					"analysis_candidate_keys must be a unique subset of candidate_keys and every entry must have a model or method role.",
 			};
 		}
 		if (

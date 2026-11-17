@@ -205,7 +205,17 @@ def build_plan(args: argparse.Namespace) -> dict[str, Any]:
     roles = manifest.get("candidate_roles")
     if not isinstance(roles, dict):
         raise PlanError("task manifest candidate_roles must be an object")
-    models = [str(key) for key in manifest.get("candidate_keys") or [] if str(roles.get(key) or "").strip().lower() in MODEL_ROLES and str(key) not in {"hidden_reference", "unprocessed"}]
+    candidate_keys = [str(key) for key in manifest.get("candidate_keys") or []]
+    selected = manifest.get("analysis_candidate_keys")
+    if not isinstance(selected, list) or not selected:
+        raise PlanError("task manifest must declare analysis_candidate_keys before resolving metrics")
+    models = [str(key) for key in selected]
+    if len(set(models)) != len(models):
+        raise PlanError("analysis_candidate_keys must be unique")
+    if any(key not in candidate_keys for key in models):
+        raise PlanError("analysis_candidate_keys must be a subset of candidate_keys")
+    if any(str(roles.get(key) or "").strip().lower() not in MODEL_ROLES or key in {"hidden_reference", "unprocessed"} for key in models):
+        raise PlanError("analysis_candidate_keys must contain only declared model candidate roles")
     if not models:
         raise PlanError("task manifest declares no model candidates")
     audio_policy = manifest.get("audio_policy")
