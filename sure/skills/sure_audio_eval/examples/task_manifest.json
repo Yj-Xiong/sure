@@ -22,5 +22,26 @@
     "loudness_standard": "ITU-R BS.1770",
     "true_peak_max_dbTP": -1
   },
+  "interface_contract": {
+    "schema": "sure.audio_eval.interface_contract.v1",
+    "evaluation_kind": "speech_enhancement",
+    "leaderboard": {"mode": "create", "leaderboard_id": null, "publish_policy": "after_settlement"},
+    "visibility": {
+      "initiator_note_visible_to_rater": false,
+      "rater_instruction_required": true,
+      "reference_audio_explanation_visible_to_rater": false
+    },
+    "sample_source": {"mode": "auto", "source_id": "dataset-v1", "package_path": null, "selection_policy": "fixed_dataset"},
+    "audio_pairing": {"relation": "clean_noisy_processed", "processing_stage": "dataset"},
+    "model_targets": {"management": "leaderboard_models", "allow_remove": true, "allow_custom": false},
+    "scoring": {
+      "metric_configuration_source": "task_manifest.metric_policies",
+      "scale_source": "task_manifest.scale",
+      "reference_validation": {"enabled": true, "rule_version": "harness.reference_score.v1"},
+      "aggregation": "arithmetic_mean"
+    },
+    "submission": {"batch_mode": "single_task", "completion_policy": "all_declared_candidates", "allow_partial": false},
+    "delivery": {"mobile_compatible": true, "shareable_entry": true, "interruption": "resume", "progress_controls": ["pause", "cancel", "restart"]}
+  },
   "standards": ["ITU-T P.1401", "ITU-R BS.1770", "ETSI TS 103 281"]
 }

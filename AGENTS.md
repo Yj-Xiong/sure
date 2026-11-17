@@ -231,6 +231,10 @@ SURE test files live in `packages/coding-agent/test/suite/` (`sure-extension`, `
 
 Do not move task-specific metrics, dataset assumptions, or SURE business logic into the common harness unless the rule is truly shared by every skill.
 
+### Material Generation
+
+When producing progress reports, HTML pages, examples, documents, or other presentation material, do not add meta-narrative disclaimers or objective asides about what the material does not represent, how it should be interpreted, or which later process is authoritative. Present factual scope, status, provenance, limitations, and failures directly through the material's content and structured fields. This rule applies to both static examples and generated reports.
+
 ### Repository Hygiene
 
 Generated paths kept out of Git include:

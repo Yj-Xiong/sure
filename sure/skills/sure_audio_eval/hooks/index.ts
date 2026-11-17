@@ -2,17 +2,15 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { SureHookContext, SureHookResult } from "@earendil-works/pi-coding-agent/hooks";
-import { invokedSkillScripts } from "../../../runtime/script-guard.ts";
-import {
-	writeOrVerifyEvaluationContext,
-} from "../../../runtime/evaluation/context.ts";
+import { writeOrVerifyEvaluationContext } from "../../../runtime/evaluation/context.ts";
+import { artifactFingerprint, observeLoop } from "../../../runtime/evaluation/loop-guard.ts";
 import {
 	readToolRegistry,
 	registrySummary,
 	validateToolRegistry,
 	writeToolRegistry,
 } from "../../../runtime/evaluation/tool-registry.ts";
-import { artifactFingerprint, observeLoop } from "../../../runtime/evaluation/loop-guard.ts";
+import { invokedSkillScripts } from "../../../runtime/script-guard.ts";
 import {
 	advance,
 	artifactParseError,
@@ -25,9 +23,9 @@ import {
 	retryExhausted,
 	runBackend,
 } from "./checkpoints.ts";
-import { FIRST_UNIT, findUnit, LAST_UNIT, MAIN_FLOW_UNITS, TOTAL_UNITS, type Unit } from "./state-machine.ts";
-import { validateProduces } from "./validate.ts";
 import { semanticGate } from "./gates.ts";
+import { FIRST_UNIT, findUnit, LAST_UNIT, TOTAL_UNITS, type Unit } from "./state-machine.ts";
+import { validateProduces } from "./validate.ts";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -56,7 +54,10 @@ function parseArgs(raw: string): Record<string, string> {
 }
 
 function listArg(value: string | undefined): string[] {
-	return (value ?? "").split(",").map((entry) => entry.trim()).filter(Boolean);
+	return (value ?? "")
+		.split(",")
+		.map((entry) => entry.trim())
+		.filter(Boolean);
 }
 
 function lockedCapabilityHash(cwd: string): string | undefined {
@@ -94,7 +95,9 @@ function toolInput(ctx: SureHookContext): unknown {
 
 export function preStart(ctx: SureHookContext): SureHookResult {
 	const args = parseArgs(ctx.args);
-	const missing = ["task_manifest", "subjective_source", "objective_source", "objective_metrics"].filter((key) => !args[key]);
+	const missing = ["task_manifest", "subjective_source", "objective_source", "objective_metrics"].filter(
+		(key) => !args[key],
+	);
 	if (missing.length > 0) {
 		return failure(
 			`Missing required /sure_audio_eval parameter(s): ${missing.join(", ")}. Provide task_manifest, subjective_source, objective_source and objective_metrics.`,
@@ -124,7 +127,8 @@ export function preStart(ctx: SureHookContext): SureHookResult {
 			},
 			codeRevision: args.code_revision ?? process.env.SURE_HARNESS_CODE_REVISION,
 			engineCommit: args.engine_commit ?? process.env.SURE_EVAL_ENGINE_COMMIT,
-			capabilityManifestSha256: args.capabilities_sha256 ?? process.env.SURE_EVAL_CAPABILITIES_SHA256 ?? lockedCapabilityHash(ctx.cwd),
+			capabilityManifestSha256:
+				args.capabilities_sha256 ?? process.env.SURE_EVAL_CAPABILITIES_SHA256 ?? lockedCapabilityHash(ctx.cwd),
 		});
 		const registry = writeToolRegistry(ctx.run.runDir);
 		const checkpoint = readCheckpoint(ctx);
@@ -136,19 +140,37 @@ export function preStart(ctx: SureHookContext): SureHookResult {
 				counters: countersFor(checkpoint.data),
 				checkpoint,
 				artifacts: [
-					{ type: "evaluation_context", name: "Evaluation context", path: `.sure/runs/${ctx.run.runId}/artifacts/evaluation_context.json`, status: "ready" },
-					{ type: "tool_registry", name: "Tool registry", path: `.sure/runs/${ctx.run.runId}/artifacts/tool_registry.json`, status: "ready", summary: registrySummary(registry) },
+					{
+						type: "evaluation_context",
+						name: "Evaluation context",
+						path: `.sure/runs/${ctx.run.runId}/artifacts/evaluation_context.json`,
+						status: "ready",
+					},
+					{
+						type: "tool_registry",
+						name: "Tool registry",
+						path: `.sure/runs/${ctx.run.runId}/artifacts/tool_registry.json`,
+						status: "ready",
+						summary: registrySummary(registry),
+					},
 				],
 			},
 		};
 	} catch (error) {
-		return failure(error instanceof Error ? error.message : String(error), "Could not freeze audio evaluation context.");
+		return failure(
+			error instanceof Error ? error.message : String(error),
+			"Could not freeze audio evaluation context.",
+		);
 	}
 }
 
 export function preToolCall(ctx: SureHookContext): SureHookResult {
 	const registry = readToolRegistry(ctx.run.runDir);
-	if (!registry) return failure("tool_registry.json is missing; restart the run to freeze the registered tools.", "Tool registry unavailable.");
+	if (!registry)
+		return failure(
+			"tool_registry.json is missing; restart the run to freeze the registered tools.",
+			"Tool registry unavailable.",
+		);
 	const registryErrors = validateToolRegistry(registry);
 	if (registryErrors.length > 0) return failure(registryErrors.join("; "), "Tool registry validation failed.");
 	const event = isRecord(ctx.event) ? ctx.event : {};
@@ -172,11 +194,18 @@ export function preToolCall(ctx: SureHookContext): SureHookResult {
 	return { ok: true };
 }
 
-function failOrRetry(ctx: SureHookContext, unit: Unit, checkpoint: ReturnType<typeof readCheckpoint>, repair: string, reason: string): SureHookResult {
+function failOrRetry(
+	unit: Unit,
+	checkpoint: ReturnType<typeof readCheckpoint>,
+	repair: string,
+	reason: string,
+): SureHookResult {
 	const next = bumpRetry(unit, checkpoint.data);
 	const attempts = next.data.retries[unit.id] ?? 1;
 	const terminal = retryExhausted(unit, next.data, 3);
-	const message = terminal ? `Gate "${unit.id}" exhausted retries: ${reason}` : `Gate "${unit.id}" blocked (attempt ${attempts}): ${reason}`;
+	const message = terminal
+		? `Gate "${unit.id}" exhausted retries: ${reason}`
+		: `Gate "${unit.id}" blocked (attempt ${attempts}): ${reason}`;
 	return {
 		ok: !terminal,
 		repair: terminal ? `${repair} Repair the input or finish with status failed.` : repair,
@@ -192,9 +221,17 @@ function failOrRetry(ctx: SureHookContext, unit: Unit, checkpoint: ReturnType<ty
 
 function runGateScript(ctx: SureHookContext, unit: Unit): { ok: boolean; repair?: string; reason?: string } {
 	if (!unit.gateScript) return { ok: true };
-	const result = runBackend(ctx, unit.gateScript, ["--produces", artifactPath(ctx, unit.produces), ...(unit.gateScriptArgs ? unit.gateScriptArgs(ctx) : [])]);
+	const result = runBackend(ctx, unit.gateScript, [
+		"--produces",
+		artifactPath(ctx, unit.produces),
+		...(unit.gateScriptArgs ? unit.gateScriptArgs(ctx) : []),
+	]);
 	if (result.ok) return { ok: true };
-	return { ok: false, repair: result.stderr.trim() || result.stdout.trim() || `Gate script ${unit.gateScript} failed.`, reason: `gate script ${unit.gateScript} failed` };
+	return {
+		ok: false,
+		repair: result.stderr.trim() || result.stdout.trim() || `Gate script ${unit.gateScript} failed.`,
+		reason: `gate script ${unit.gateScript} failed`,
+	};
 }
 
 export function postToolResult(ctx: SureHookContext): SureHookResult {
@@ -220,14 +257,36 @@ export function postToolResult(ctx: SureHookContext): SureHookResult {
 	const artifact = readArtifact(ctx, unit.produces);
 	if (artifact === undefined) {
 		const parseError = artifactParseError(ctx, unit.produces);
-		return parseError ? failOrRetry(ctx, unit, checkpoint, `${unit.produces} is invalid JSON: ${parseError}`, "invalid JSON") : { ok: true };
+		return parseError
+			? failOrRetry(unit, checkpoint, `${unit.produces} is invalid JSON: ${parseError}`, "invalid JSON")
+			: { ok: true };
 	}
 	const structural = validateProduces(ctx, unit, artifact);
-	if (!structural.ok) return structural.missing ? { ok: true } : failOrRetry(ctx, unit, checkpoint, structural.repair ?? "Repair the artifact.", structural.reason ?? "schema gate failed");
+	if (!structural.ok)
+		return structural.missing
+			? { ok: true }
+			: failOrRetry(
+					unit,
+					checkpoint,
+					structural.repair ?? "Repair the artifact.",
+					structural.reason ?? "schema gate failed",
+				);
 	const semantic = semanticGate(unit.id, artifact, ctx);
-	if (!semantic.ok) return failOrRetry(ctx, unit, checkpoint, semantic.repair ?? "Repair the artifact.", semantic.reason ?? "semantic gate failed");
+	if (!semantic.ok)
+		return failOrRetry(
+			unit,
+			checkpoint,
+			semantic.repair ?? "Repair the artifact.",
+			semantic.reason ?? "semantic gate failed",
+		);
 	const backend = runGateScript(ctx, unit);
-	if (!backend.ok) return failOrRetry(ctx, unit, checkpoint, backend.repair ?? "Repair the artifact.", backend.reason ?? "backend gate failed");
+	if (!backend.ok)
+		return failOrRetry(
+			unit,
+			checkpoint,
+			backend.repair ?? "Repair the artifact.",
+			backend.reason ?? "backend gate failed",
+		);
 	const next = advance(unit, checkpoint.data);
 	if (!next) return { ok: true };
 	return {
@@ -244,20 +303,58 @@ export function postToolResult(ctx: SureHookContext): SureHookResult {
 export function preFinish(ctx: SureHookContext): SureHookResult {
 	const checkpoint = readCheckpoint(ctx);
 	try {
-		const loop = JSON.parse(readFileSync(join(ctx.runDir, "artifacts", "loop_guard.json"), "utf8")) as { triggered?: boolean };
-		if (loop.triggered === true) return failure("loop_guard.json records a repeated no-progress action. Change the input or repair cause before finishing.", "Loop guard is active.", countersFor(checkpoint.data), checkpoint);
+		const loop = JSON.parse(readFileSync(join(ctx.runDir, "artifacts", "loop_guard.json"), "utf8")) as {
+			triggered?: boolean;
+		};
+		if (loop.triggered === true)
+			return failure(
+				"loop_guard.json records a repeated no-progress action. Change the input or repair cause before finishing.",
+				"Loop guard is active.",
+				countersFor(checkpoint.data),
+				checkpoint,
+			);
 	} catch {
 		// No loop record is the normal state.
 	}
 	const report = readArtifact(ctx, LAST_UNIT.produces);
-	if (checkpoint.data.currentUnit !== LAST_UNIT.id || !checkpoint.data.completedUnits.includes(LAST_UNIT.id)) return failure(`Complete the audio evaluation state machine before finishing; current unit is ${checkpoint.data.currentUnit}.`, "Run finished before all gates passed.", countersFor(checkpoint.data), checkpoint);
-	if (report === undefined) return failure(`Produce ${LAST_UNIT.produces} before calling sure_finish.`, "Final audio evaluation report is missing.", countersFor(checkpoint.data), checkpoint);
+	if (checkpoint.data.currentUnit !== LAST_UNIT.id || !checkpoint.data.completedUnits.includes(LAST_UNIT.id))
+		return failure(
+			`Complete the audio evaluation state machine before finishing; current unit is ${checkpoint.data.currentUnit}.`,
+			"Run finished before all gates passed.",
+			countersFor(checkpoint.data),
+			checkpoint,
+		);
+	if (report === undefined)
+		return failure(
+			`Produce ${LAST_UNIT.produces} before calling sure_finish.`,
+			"Final audio evaluation report is missing.",
+			countersFor(checkpoint.data),
+			checkpoint,
+		);
 	const structural = validateProduces(ctx, LAST_UNIT, report);
-	if (!structural.ok) return failure(structural.repair ?? "Final report is invalid.", "Final report schema gate failed.", countersFor(checkpoint.data), checkpoint);
+	if (!structural.ok)
+		return failure(
+			structural.repair ?? "Final report is invalid.",
+			"Final report schema gate failed.",
+			countersFor(checkpoint.data),
+			checkpoint,
+		);
 	const semantic = semanticGate(LAST_UNIT.id, report, ctx);
-	if (!semantic.ok) return failure(semantic.repair ?? "Final report is invalid.", "Final report semantic gate failed.", countersFor(checkpoint.data), checkpoint);
+	if (!semantic.ok)
+		return failure(
+			semantic.repair ?? "Final report is invalid.",
+			"Final report semantic gate failed.",
+			countersFor(checkpoint.data),
+			checkpoint,
+		);
 	const backend = runGateScript(ctx, LAST_UNIT);
-	if (!backend.ok) return failure(backend.repair ?? "Final report deterministic gate failed.", "Final report deterministic gate failed.", countersFor(checkpoint.data), checkpoint);
+	if (!backend.ok)
+		return failure(
+			backend.repair ?? "Final report deterministic gate failed.",
+			"Final report deterministic gate failed.",
+			countersFor(checkpoint.data),
+			checkpoint,
+		);
 	return {
 		ok: true,
 		state_patch: {
@@ -270,9 +367,21 @@ export function preFinish(ctx: SureHookContext): SureHookResult {
 }
 
 export function postFinish(ctx: SureHookContext): SureHookResult {
-	return { ok: true, state_patch: { phase: { id: "finish", label: "Audio evaluation finished", status: ctx.run.status, progress: 1 }, message: ctx.run.summary ?? "Audio evaluation run finished." } };
+	return {
+		ok: true,
+		state_patch: {
+			phase: { id: "finish", label: "Audio evaluation finished", status: ctx.run.status, progress: 1 },
+			message: ctx.run.summary ?? "Audio evaluation run finished.",
+		},
+	};
 }
 
 export function onError(ctx: SureHookContext): SureHookResult {
-	return { ok: true, state_patch: { phase: { id: "error", label: "Audio evaluation interrupted", status: "failed" }, message: ctx.run.errorSummary ?? ctx.run.lastRepair ?? "Audio evaluation stopped before completion." } };
+	return {
+		ok: true,
+		state_patch: {
+			phase: { id: "error", label: "Audio evaluation interrupted", status: "failed" },
+			message: ctx.run.errorSummary ?? ctx.run.lastRepair ?? "Audio evaluation stopped before completion.",
+		},
+	};
 }

@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "evaluation_kind",
+    "leaderboard",
+    "visibility",
+    "sample_source",
+    "audio_pairing",
+    "model_targets",
+    "scoring",
+    "submission",
+    "delivery"
+  ],
+  "properties": {
+    "schema": {"type": "string", "enum": ["sure.audio_eval.interface_contract.v1"]},
+    "evaluation_kind": {"type": "string", "enum": ["tts", "speech_enhancement", "other_audio"]},
+    "leaderboard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "leaderboard_id", "publish_policy"],
+      "properties": {
+        "mode": {"type": "string", "enum": ["existing", "create"]},
+        "leaderboard_id": {"type": ["string", "null"]},
+        "publish_policy": {"type": "string", "enum": ["after_settlement"]}
+      }
+    },
+    "visibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["initiator_note_visible_to_rater", "rater_instruction_required", "reference_audio_explanation_visible_to_rater"],
+      "properties": {
+        "initiator_note_visible_to_rater": {"type": "boolean"},
+        "rater_instruction_required": {"type": "boolean"},
+        "reference_audio_explanation_visible_to_rater": {"type": "boolean"}
+      }
+    },
+    "sample_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "source_id", "package_path", "selection_policy"],
+      "properties": {
+        "mode": {"type": "string", "enum": ["auto", "upload"]},
+        "source_id": {"type": ["string", "null"]},
+        "package_path": {"type": ["string", "null"]},
+        "selection_policy": {"type": "string", "enum": ["fixed_dataset", "random"]}
+      }
+    },
+    "audio_pairing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["relation", "processing_stage"],
+      "properties": {
+        "relation": {"type": "string", "enum": ["clean_noisy_processed"]},
+        "processing_stage": {"type": "string", "enum": ["dataset", "task"]}
+      }
+    },
+    "model_targets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["management", "allow_remove", "allow_custom"],
+      "properties": {
+        "management": {"type": "string", "enum": ["leaderboard_models", "custom_scene"]},
+        "allow_remove": {"type": "boolean"},
+        "allow_custom": {"type": "boolean"}
+      }
+    },
+    "scoring": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metric_configuration_source", "scale_source", "reference_validation", "aggregation"],
+      "properties": {
+        "metric_configuration_source": {"type": "string", "enum": ["task_manifest.metric_policies"]},
+        "scale_source": {"type": "string", "enum": ["task_manifest.scale"]},
+        "reference_validation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled", "rule_version"],
+          "properties": {
+            "enabled": {"type": "boolean"},
+            "rule_version": {"type": "string"}
+          }
+        },
+        "aggregation": {"type": "string", "enum": ["arithmetic_mean"]}
+      }
+    },
+    "submission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["batch_mode", "completion_policy", "allow_partial"],
+      "properties": {
+        "batch_mode": {"type": "string", "enum": ["single_task"]},
+        "completion_policy": {"type": "string", "enum": ["all_declared_candidates"]},
+        "allow_partial": {"type": "boolean", "enum": [false]}
+      }
+    },
+    "delivery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mobile_compatible", "shareable_entry", "interruption", "progress_controls"],
+      "properties": {
+        "mobile_compatible": {"type": "boolean"},
+        "shareable_entry": {"type": "boolean"},
+        "interruption": {"type": "string", "enum": ["resume"]},
+        "progress_controls": {"type": "array", "items": {"type": "string", "enum": ["pause", "cancel", "restart"]}, "minItems": 1}
+      }
+    }
+  }
+}

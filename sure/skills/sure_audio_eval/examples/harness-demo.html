@@ -91,9 +91,9 @@
 </head>
 <body>
   <header>
-    <p class="eyebrow">SURE Audio Evaluation Harness · example run</p>
+    <p class="eyebrow">SURE Audio Evaluation Harness   example run</p>
     <h1>从任务清单到可复核的主客观联合分析</h1>
-    <p class="lead">这是一个静态示例页面，用来说明 Agent 如何按阶段推进评测、留下产物，并在数据或结果不符合约束时停下来等待修复。</p>
+    <p class="lead">这是一个静态示例页面，展示 Agent 如何按阶段推进评测、留下产物，并在数据或结果不符合约束时停下来等待修复。</p>
   </header>
   <div class="app">
     <aside>
@@ -108,7 +108,7 @@
     </aside>
     <main>
       <div class="toolbar">
-        <p><strong>Run:</strong> <code>audio_eval_20261111_001</code> · <strong>Task:</strong> <code>speech-quality-example-v1</code></p>
+        <p><strong>Run:</strong> <code>audio_eval_20261111_001</code>   <strong>Task:</strong> <code>speech-quality-example-v1</code></p>
         <div class="run-state"><span class="dot"></span>可继续运行</div>
       </div>
 
@@ -128,10 +128,10 @@
           </div>
         </div>
         <div class="stage-list" style="margin-top:16px">
-          <div class="stage"><div class="number">01 · PASS</div><h3>任务清单</h3><p>样本、候选、量表和音频版本已经冻结。</p></div>
-          <div class="stage"><div class="number">02 · PASS</div><h3>指标计划</h3><p>先确定指标类型、方向、reference mode 和模型分析范围。</p></div>
-          <div class="stage"><div class="number">03 · PASS</div><h3>音频条件</h3><p>格式、哈希、响度和 True Peak 检查完成。</p></div>
-          <div class="stage"><div class="number">04 · RUNNING</div><h3>客观与主观数据</h3><p>正在整理逐条件客观结果和最新有效听评记录。</p></div>
+          <div class="stage"><div class="number">01   PASS</div><h3>任务清单</h3><p>样本、候选、量表和音频版本已经冻结。</p></div>
+          <div class="stage"><div class="number">02   PASS</div><h3>指标计划</h3><p>先确定指标类型、方向、reference mode 和模型分析范围。</p></div>
+          <div class="stage"><div class="number">03   PASS</div><h3>音频条件</h3><p>格式、哈希、响度和 True Peak 检查完成。</p></div>
+          <div class="stage"><div class="number">04   RUNNING</div><h3>客观与主观数据</h3><p>正在整理逐条件客观结果和最新有效听评记录。</p></div>
         </div>
       </section>
 
@@ -179,7 +179,7 @@
       </section>
 
       <section class="page" id="artifacts">
-        <div class="card"><h2>产物与门控</h2><p class="muted">示例运行目录：<code>.sure/runs/audio_eval_20261111_001/artifacts/</code></p><div class="artifact-list">
+        <div class="card"><h2>产物与门控</h2><p class="muted">示例运行目录 <code>.sure/runs/audio_eval_20261111_001/artifacts/</code></p><div class="artifact-list">
           <div class="artifact"><span class="state"></span><div><strong>evaluation_context.json</strong><small>输入文件哈希、指标范围、标准和 engine 身份</small></div><span class="badge pass">ready</span></div>
           <div class="artifact"><span class="state"></span><div><strong>tool_registry.json</strong><small>可调用脚本、所属阶段、输入和输出契约</small></div><span class="badge pass">ready</span></div>
           <div class="artifact"><span class="state"></span><div><strong>objective_metric_plan.json</strong><small>指标类型、方向、reference mode 和模型条件分析范围</small></div><span class="badge pass">ready</span></div>
@@ -199,7 +199,7 @@
         </div>
         <div class="card" style="margin-top:16px"><h2>为什么停下来</h2><p>停止的目的不是阻止评测，而是防止错误文件继续进入后续统计。修复输入或重新生成产物后，可以通过 <code>/sure_resume</code> 从当前 checkpoint 继续，不需要从头开始。</p><div class="callout warning">失败、暂停和不完整都必须留下事件、诊断和已有产物；只有所有必要产物通过终态检查，运行才可以标记为 success。</div></div>
       </section>
-      <p class="footer">静态 Harness demo · 示例数据仅用于说明流程，不代表任何真实评测结果。</p>
+      <p class="footer">SURE Audio Evaluation Harness   示例运行界面</p>
     </main>
   </div>
   <script>

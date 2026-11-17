@@ -93,6 +93,30 @@ def metadata_rows(task_id: str, analysis: dict[str, Any], manifest: dict[str, An
     ]
 
 
+def interface_contract_rows(manifest: dict[str, Any]) -> list[dict[str, Any]]:
+    contract = manifest.get("interface_contract") if isinstance(manifest.get("interface_contract"), dict) else {}
+    leaderboard = contract.get("leaderboard") if isinstance(contract.get("leaderboard"), dict) else {}
+    source = contract.get("sample_source") if isinstance(contract.get("sample_source"), dict) else {}
+    pairing = contract.get("audio_pairing") if isinstance(contract.get("audio_pairing"), dict) else {}
+    targets = contract.get("model_targets") if isinstance(contract.get("model_targets"), dict) else {}
+    scoring = contract.get("scoring") if isinstance(contract.get("scoring"), dict) else {}
+    submission = contract.get("submission") if isinstance(contract.get("submission"), dict) else {}
+    delivery = contract.get("delivery") if isinstance(contract.get("delivery"), dict) else {}
+    visibility = contract.get("visibility") if isinstance(contract.get("visibility"), dict) else {}
+    reference_validation = scoring.get("reference_validation") if isinstance(scoring.get("reference_validation"), dict) else {}
+    return [
+        {"field": "Evaluation kind", "value": contract.get("evaluation_kind", "")},
+        {"field": "Leaderboard", "value": f"{leaderboard.get('mode', '')} / {leaderboard.get('publish_policy', '')}"},
+        {"field": "Sample source", "value": f"{source.get('mode', '')} / {source.get('selection_policy', '')}"},
+        {"field": "Audio pairing", "value": f"{pairing.get('relation', '')} / {pairing.get('processing_stage', '')}"},
+        {"field": "Model targets", "value": f"{targets.get('management', '')}; remove={targets.get('allow_remove', '')}; custom={targets.get('allow_custom', '')}"},
+        {"field": "Score validation", "value": f"enabled={reference_validation.get('enabled', '')}; rule={reference_validation.get('rule_version', '')}"},
+        {"field": "Submission", "value": f"{submission.get('batch_mode', '')} / {submission.get('completion_policy', '')}"},
+        {"field": "Delivery", "value": f"mobile={delivery.get('mobile_compatible', '')}; shareable={delivery.get('shareable_entry', '')}; interruption={delivery.get('interruption', '')}"},
+        {"field": "Visibility", "value": f"initiator_note={visibility.get('initiator_note_visible_to_rater', '')}; rater_instruction={visibility.get('rater_instruction_required', '')}; reference_explanation={visibility.get('reference_audio_explanation_visible_to_rater', '')}"},
+    ]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--analysis", type=Path, required=True)
@@ -135,6 +159,7 @@ def main() -> None:
 <h1>Audio evaluation report</h1><p class='muted'>The primary analysis unit is one sample × model candidate condition point. Hidden reference and unprocessed conditions are retained in source tables and excluded from MOS-to-metric correlation.</p>
 <div class='status {status_class}'><strong>Run status:</strong> {cell(analysis.get('status', 'unknown'))}</div>
 <h2>Task and provenance</h2>{table(metadata_rows(task_id, analysis, manifest, audio, context), [('Field', 'field'), ('Value', 'value')])}
+<h2>Listening interface contract</h2>{table(interface_contract_rows(manifest), [('Field', 'field'), ('Value', 'value')])}
 <h2>Audio conditions</h2>{table(audio_items, [('Sample', 'sample_id'), ('Candidate', 'candidate_key'), ('Format', 'format'), ('Sample rate', 'sample_rate'), ('Channels', 'channels'), ('Duration', 'duration_seconds'), ('Audio SHA-256', 'audio_sha256')])}
 <h2>Objective metric plan</h2>{table(metric_rows, [('Metric', 'metric'), ('Type', 'type'), ('Direction', 'direction'), ('Reference mode', 'reference_mode'), ('Pipeline', 'pipeline_id'), ('Model correlation', 'participates_in_model_correlation')])}
 <h2>Raw listener scores</h2>{table(records(args.subjective), [('Task', 'task_id'), ('Task version', 'task_version'), ('Dataset version', 'dataset_version'), ('Audio version', 'audio_version'), ('Listener', 'listener_id'), ('Session', 'session_id'), ('Device', 'device_type'), ('Round', 'round'), ('Submission', 'submission_kind'), ('Sample', 'sample_id'), ('Candidate', 'candidate_key'), ('Position', 'candidate_position'), ('Score', 'score'), ('Submitted', 'submitted_at'), ('Audio SHA-256', 'audio_sha256')])}
