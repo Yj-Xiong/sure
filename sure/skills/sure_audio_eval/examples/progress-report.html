@@ -372,7 +372,7 @@
         <div class="card"><h3>原始评分不覆盖</h3><p class="muted">原始提交保留，整理结果另写文件。</p><ul class="list"><li>每条评分带有听评者、会话、设备、批次和时间。</li><li>相同任务、听评者、样本和候选只保留最新有效记录。</li><li>无效行保留拒绝原因。</li></ul></div>
         <div class="card"><h3>完整组才聚合</h3><p class="muted">缺一项候选，就不把这一组送入主分析。</p><ul class="list"><li>完整听评组才计算 MOS。</li><li>每个样本和候选输出人数、MOS、SD 和 t-CI95。</li><li>人数少于 2 时不估计 CI95。</li></ul></div>
         <div class="card"><h3>只分析模型条件</h3><p class="muted">相关性回答模型方法与主观感受是否一致。</p><ul class="list"><li>分析单位是 sample 和 model candidate。</li><li>只使用任务冻结的 <code>analysis_candidate_keys</code>。</li><li>隐藏参考和未处理输入留在记录中，但不进入相关性。</li><li>每个指标分别输出 Pearson 和 Spearman。</li></ul></div>
-        <div class="card"><h3>筛查只看主观分</h3><p class="muted">筛查不能被客观分数或相关性结果影响。</p><ul class="list"><li>只根据模型候选的主观评分分布标记异常。</li><li>规则使用至少 8 条评分、IQR 三倍和中位数偏离 20 分条件，属于 Harness screening.v1 规则。</li><li>保留筛查前、筛查后和 flagged list。</li><li>高杠杆点只做诊断，不因相关性变化自动删除。</li></ul></div>
+        <div class="card"><h3>筛查只看主观分</h3><p class="muted">筛查不能被客观分数或相关性结果影响。</p><ul class="list"><li>只根据模型候选的主观评分分布标记异常。</li><li>最低评分人数默认按任务选定的分析模型数量确定，也可由 <code>screening_policy.min_ratings</code> 明确设置。另要求 IQR 大于 0、超出 3×IQR 且偏离中位数至少 20 分。</li><li>保留筛查前、筛查后和 flagged list。</li><li>高杠杆点只做诊断，不因相关性变化自动删除。</li></ul></div>
         <div class="card"><h3>失败停在当前阶段</h3><p class="muted">发现问题就留下诊断，修复后从 checkpoint 继续。</p><ul class="list"><li>不使用旧版本结果补齐当前运行。</li><li>不静默更换指标、模型、engine 或数据版本。</li><li>重复无进展动作由 loop guard 停止。</li></ul></div>
         <div class="card"><h3>标准按阶段使用</h3><p class="muted">引用用于界定工作边界。</p><ul class="list"><li>任务与评分对象 BS.1284-2、P.808。</li><li>音频条件 BS.1770。</li><li>MOS、CI95 和相关性 P.1401、NIST Statistical Handbook。</li><li>筛查和报告组织 ETSI TS 103 281 V1.3.1。</li></ul></div>
       </div>

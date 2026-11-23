@@ -1,7 +1,8 @@
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { isAbsolute, relative, resolve } from "node:path";
 import type { SureHookContext } from "@earendil-works/pi-coding-agent/hooks";
-import { readEvaluationContext } from "../../../runtime/evaluation/context.ts";
+import { canonicalJson, verifyEvaluationContext } from "../../../runtime/evaluation/context.ts";
 import { readToolRegistry, validateToolRegistry } from "../../../runtime/evaluation/tool-registry.ts";
 import type { GateResult } from "./checkpoints.ts";
 
@@ -33,6 +34,106 @@ function readJsonLines(path: string): Array<Record<string, unknown>> {
 		.map((line) => line.trim())
 		.filter(Boolean)
 		.map((line) => JSON.parse(line) as Record<string, unknown>);
+}
+
+function readJson(path: string): Record<string, unknown> | undefined {
+	try {
+		const value = JSON.parse(readFileSync(path, "utf8"));
+		return isRecord(value) ? value : undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+function fileSha256(path: string): string {
+	const digest = createHash("sha256");
+	digest.update(readFileSync(path));
+	return digest.digest("hex");
+}
+
+function taskArtifact(ctx: SureHookContext): Record<string, unknown> | undefined {
+	return readJson(join(ctx.runDir, "artifacts", "task_manifest_resolved.json"));
+}
+
+function metricPlanArtifact(ctx: SureHookContext): Record<string, unknown> | undefined {
+	return readJson(join(ctx.runDir, "artifacts", "objective_metric_plan.json"));
+}
+
+function audioArtifact(ctx: SureHookContext): Record<string, unknown> | undefined {
+	return readJson(join(ctx.runDir, "artifacts", "audio_manifest.json"));
+}
+
+function sourceTaskManifest(ctx: SureHookContext): Record<string, unknown> | undefined {
+	const context = readJson(join(ctx.runDir, "artifacts", "evaluation_context.json"));
+	if (!context || typeof context.task_manifest !== "string") return undefined;
+	const path = resolve(ctx.cwd, context.task_manifest);
+	return pathInside(ctx.cwd, path) ? readJson(path) : undefined;
+}
+
+function sameJson(left: unknown, right: unknown): boolean {
+	return canonicalJson(left) === canonicalJson(right);
+}
+
+function objectiveRowsGate(ctx: SureHookContext, artifact: Record<string, unknown>, rows: Array<Record<string, unknown>>): string | undefined {
+	const task = taskArtifact(ctx);
+	const plan = metricPlanArtifact(ctx);
+	const audio = audioArtifact(ctx);
+	if (!task || !plan || !audio) return "task manifest, metric plan and audio manifest are required before objective rows";
+	const audioPolicy = isRecord(task.audio_policy) ? task.audio_policy : {};
+	const samples = new Set((Array.isArray(task.sample_ids) ? task.sample_ids : []).map(String));
+	const candidates = new Set((Array.isArray(task.candidate_keys) ? task.candidate_keys : []).map(String));
+	const planMetrics = new Map<string, Record<string, unknown>>();
+	for (const value of Array.isArray(plan.metrics) ? plan.metrics : []) {
+		if (!isRecord(value) || value.participates_in_model_correlation === false) continue;
+		if (typeof value.metric === "string") planMetrics.set(value.metric, value);
+	}
+	const audioItems = new Map<string, Record<string, unknown>>();
+	for (const value of Array.isArray(audio.items) ? audio.items : []) {
+		if (isRecord(value) && typeof value.sample_id === "string" && typeof value.candidate_key === "string")
+			audioItems.set(`${value.sample_id}\0${value.candidate_key}`, value);
+	}
+	const expected = new Set<string>();
+	for (const sample of samples) for (const candidate of candidates) for (const metric of planMetrics.keys()) expected.add(`${sample}\0${candidate}\0${metric}`);
+	const seen = new Set<string>();
+	for (const row of rows) {
+		for (const key of ["task_id", "task_version", "dataset_version", "audio_version", "sample_id", "candidate_key", "metric", "direction", "reference_mode", "engine_commit", "pipeline_id", "audio_sha256", "capability_manifest_sha256"])
+			if (typeof row[key] !== "string" || String(row[key]).length === 0) return `objective row missing ${key}`;
+		if (row.task_id !== task.task_id || row.task_version !== task.task_version || row.dataset_version !== task.dataset_version || row.audio_version !== audioPolicy.audio_version)
+			return "objective row task/dataset/audio version differs from frozen task";
+		if (!samples.has(String(row.sample_id)) || !candidates.has(String(row.candidate_key))) return "objective row is outside task sample/candidate whitelist";
+		const spec = planMetrics.get(String(row.metric));
+		if (!spec) return `objective metric is absent from metric plan: ${String(row.metric)}`;
+		if (row.direction !== spec.direction || row.reference_mode !== spec.reference_mode || row.pipeline_id !== spec.pipeline_id)
+			return `objective row semantics differ from metric plan: ${String(row.metric)}`;
+		if (row.engine_commit !== artifact.engine_commit || row.engine_commit !== plan.engine_commit) return "objective row engine_commit differs from locked plan";
+		if (row.capability_manifest_sha256 !== plan.capability_manifest_sha256) return "objective row capability hash differs from locked plan";
+		const item = audioItems.get(`${row.sample_id}\0${row.candidate_key}`);
+		if (!item || row.audio_sha256 !== item.audio_sha256) return `objective row audio hash does not match audio manifest: ${String(row.sample_id)} × ${String(row.candidate_key)}`;
+		if (row.reference_mode === "paired" && (typeof row.reference_audio_sha256 !== "string" || (item.reference_audio_sha256 && row.reference_audio_sha256 !== item.reference_audio_sha256))) return "paired objective row reference hash is missing or mismatched";
+		if (row.reference_mode === "none" && row.reference_audio_sha256 !== undefined) return "no-reference objective row carries reference_audio_sha256";
+		const key = `${row.sample_id}\0${row.candidate_key}\0${row.metric}`;
+		if (seen.has(key)) return `duplicate objective condition: ${key}`;
+		seen.add(key);
+	}
+	if (seen.size !== expected.size || [...expected].some((key) => !seen.has(key))) return "objective rows do not cover the complete task sample × candidate × metric matrix";
+	return undefined;
+}
+
+function finalManifestError(ctx: SureHookContext, manifest: Record<string, unknown>): string | undefined {
+	const entries = Array.isArray(manifest.artifacts) ? manifest.artifacts : [];
+	if (!Number.isInteger(manifest.artifact_count) || manifest.artifact_count !== entries.length) return "final manifest artifact_count does not match artifacts";
+	const required = new Set(["analysis_html", "analysis_report", "evaluation_context", "tool_registry", "task_manifest", "audio_manifest", "subjective_rows", "mos", "ci95", "objective_rows"]);
+	const roles = new Set<string>();
+	for (const entry of entries) {
+		if (!isRecord(entry) || typeof entry.role !== "string" || typeof entry.path !== "string" || !/^[a-f0-9]{64}$/i.test(String(entry.sha256))) return "final manifest artifact entry is incomplete";
+		if (roles.has(entry.role)) return `duplicate final manifest role: ${entry.role}`;
+		roles.add(entry.role);
+		const path = runPath(ctx, entry.path);
+		if (!path || !existsSync(path) || !statSync(path).isFile()) return `final manifest artifact is missing: ${entry.path}`;
+		if (fileSha256(path) !== String(entry.sha256).toLowerCase()) return `final manifest artifact hash mismatch: ${entry.path}`;
+	}
+	for (const role of required) if (!roles.has(role)) return `final manifest is missing required artifact role: ${role}`;
+	return undefined;
 }
 
 function interfaceContractError(contract: unknown): string | undefined {
@@ -73,12 +174,12 @@ function interfaceContractError(contract: unknown): string | undefined {
 	if (source.mode === "upload" && !string(source.package_path)) return "upload sample_source requires package_path";
 
 	const pairing = contract.audio_pairing;
-	if (
-		!isRecord(pairing) ||
-		pairing.relation !== "clean_noisy_processed" ||
-		!["dataset", "task"].includes(String(pairing.processing_stage))
-	)
-		return "interface_contract audio_pairing must declare clean_noisy_processed and its processing_stage";
+	if (!isRecord(pairing)) return "interface_contract audio_pairing must be declared";
+	const kind = String(contract.evaluation_kind);
+	const validPairing = kind === "speech_enhancement"
+		? pairing.relation === "clean_noisy_processed" && ["dataset", "task"].includes(String(pairing.processing_stage))
+		: ["text_to_speech", "reference_text", "none", "clean_noisy_processed"].includes(String(pairing.relation)) && ["dataset", "task", "generation", "none"].includes(String(pairing.processing_stage));
+	if (!validPairing) return `interface_contract audio_pairing is incompatible with evaluation_kind=${kind}`;
 
 	const targets = contract.model_targets;
 	if (
@@ -129,21 +230,22 @@ function interfaceContractError(contract: unknown): string | undefined {
 }
 
 function requireContext(ctx: SureHookContext): {
-	context: NonNullable<ReturnType<typeof readEvaluationContext>>;
+	context: Record<string, unknown>;
 	errors: string[];
 } {
-	const context = readEvaluationContext(ctx.runDir);
-	if (!context) return { context: undefined as never, errors: ["evaluation_context.json is missing or invalid"] };
+	const verified = verifyEvaluationContext(ctx.cwd, ctx.runDir);
+	const context = verified.context as Record<string, unknown> | undefined;
+	if (!context) return { context: {} as Record<string, unknown>, errors: verified.errors };
 	const registry = readToolRegistry(ctx.runDir);
 	const errors = registry ? validateToolRegistry(registry) : ["tool_registry.json is missing or invalid"];
-	return { context, errors };
+	return { context, errors: [...verified.errors, ...errors] };
 }
 
 export function semanticGate(unitId: string, artifact: unknown, ctx: SureHookContext): GateResult {
 	if (!isRecord(artifact))
 		return { ok: false, reason: "artifact is not an object", repair: `Unit ${unitId} must produce a JSON object.` };
 	const { context, errors } = requireContext(ctx);
-	if (errors.length > 0 && unitId !== "resolve_task")
+	if (errors.length > 0)
 		return { ok: false, reason: "context or registry invalid", repair: errors.join("; ") };
 	if (unitId === "resolve_task") {
 		const samples = artifact.sample_ids;
@@ -216,7 +318,19 @@ export function semanticGate(unitId: string, artifact: unknown, ctx: SureHookCon
 				repair: "Declare a finite increasing score scale in task_manifest_resolved.json.",
 			};
 		}
-		return { ok: true };
+			const source = sourceTaskManifest(ctx);
+			const context = requireContext(ctx).context;
+			const sourceFiles = Array.isArray(context.source_files) ? context.source_files : [];
+			const sourceEntry = sourceFiles.find((entry) => isRecord(entry) && entry.kind === "task_manifest");
+			if (!source || !isRecord(sourceEntry) || typeof sourceEntry.sha256 !== "string")
+				return { ok: false, reason: "task source manifest is unavailable", repair: "Resolve the task manifest from the frozen source and include source_manifest_sha256." };
+			if (artifact.source_manifest_sha256 !== sourceEntry.sha256)
+				return { ok: false, reason: "task manifest source hash mismatch", repair: "Set source_manifest_sha256 to the hash recorded in evaluation_context.json." };
+			for (const field of ["task_id", "task_version", "dataset_version", "engine_task", "language", "sample_ids", "candidate_keys", "analysis_candidate_keys", "candidate_roles", "scale", "audio_policy", "interface_contract", "analysis_unit", "excluded_candidates_from_correlation", "metric_policies", "objective_metrics", "screening_policy", "standards"]) {
+				if (source[field] !== undefined && !sameJson(source[field], artifact[field]))
+					return { ok: false, reason: `resolved task field differs from source: ${field}`, repair: `Copy ${field} from the frozen task manifest without changing its value.` };
+			}
+			return { ok: true };
 	}
 	if (unitId === "resolve_metrics") {
 		if (
@@ -241,6 +355,12 @@ export function semanticGate(unitId: string, artifact: unknown, ctx: SureHookCon
 				repair:
 					"Declare model_condition analysis, exclude hidden_reference and unprocessed, and list the objective metrics before scoring.",
 			};
+		}
+		const task = taskArtifact(ctx);
+		if (!task || !sameJson(artifact.model_candidate_keys, task.analysis_candidate_keys))
+			return { ok: false, reason: "metric plan model set differs from task manifest", repair: "Use exactly task_manifest_resolved.analysis_candidate_keys in objective_metric_plan.json." };
+		for (const field of ["task_id", "task_version", "dataset_version"]) {
+			if (!sameJson(artifact[field], task[field])) return { ok: false, reason: `metric plan ${field} mismatch`, repair: `Copy ${field} from task_manifest_resolved.json.` };
 		}
 		const expectedStages = [
 			"resolve_task",
@@ -355,6 +475,12 @@ export function semanticGate(unitId: string, artifact: unknown, ctx: SureHookCon
 				repair: "Validate audio_manifest.json and include audio_version, items and validated:true.",
 			};
 		}
+		const task = taskArtifact(ctx);
+		if (!task) return { ok: false, reason: "task manifest missing", repair: "Validate audio only after task_manifest_resolved.json exists." };
+		const expected = new Set<string>();
+		for (const sample of Array.isArray(task.sample_ids) ? task.sample_ids : [])
+			for (const candidate of Array.isArray(task.candidate_keys) ? task.candidate_keys : []) expected.add(`${sample}\0${candidate}`);
+		const seen = new Set<string>();
 		for (const item of artifact.items) {
 			if (
 				!isRecord(item) ||
@@ -368,7 +494,11 @@ export function semanticGate(unitId: string, artifact: unknown, ctx: SureHookCon
 					repair: "Every audio item needs sample_id, candidate_key and a SHA-256 hash.",
 				};
 			}
+			const key = `${item.sample_id}\0${item.candidate_key}`;
+			if (seen.has(key) || !expected.has(key)) return { ok: false, reason: "audio manifest condition mismatch", repair: "Audio manifest must contain each task sample × candidate exactly once." };
+			seen.add(key);
 		}
+		if (seen.size !== expected.size) return { ok: false, reason: "audio manifest matrix incomplete", repair: "Add every task sample × candidate audio condition to audio_manifest.json." };
 		return { ok: true };
 	}
 	if (unitId === "run_objective") {
@@ -409,6 +539,8 @@ export function semanticGate(unitId: string, artifact: unknown, ctx: SureHookCon
 				reason: "objective row count mismatch",
 				repair: "Make row_count equal the finite rows in objective_scores.jsonl.",
 			};
+		const objectiveError = objectiveRowsGate(ctx, artifact, rows);
+		if (objectiveError) return { ok: false, reason: "objective row integrity failure", repair: objectiveError };
 		const keys = new Set<string>();
 		for (const row of rows) {
 			if (
@@ -540,6 +672,8 @@ export function semanticGate(unitId: string, artifact: unknown, ctx: SureHookCon
 					reason: "final manifest incomplete",
 					repair: "Final manifest must include task/dataset/audio versions and hashed artifacts.",
 				};
+			const manifestError = finalManifestError(ctx, manifest);
+			if (manifestError) return { ok: false, reason: "final manifest integrity failure", repair: manifestError };
 		} catch {
 			return {
 				ok: false,

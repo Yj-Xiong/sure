@@ -86,6 +86,58 @@ export function resolveEvaluationInput(cwd: string, value: string): string {
 	return resolved;
 }
 
+function hasGlob(value: string): boolean {
+	return /[*?\[]/.test(value);
+}
+
+function globRegex(pattern: string): RegExp {
+	let source = "^";
+	for (let index = 0; index < pattern.length; index += 1) {
+		const char = pattern[index];
+		if (char === "*" && pattern[index + 1] === "*") {
+			source += ".*";
+			index += 1;
+		} else if (char === "*") {
+			source += "[^/]*";
+		} else if (char === "?") {
+			source += "[^/]";
+		} else if (char === "[") {
+			const end = pattern.indexOf("]", index + 1);
+			if (end < 0) throw new Error(`Invalid glob pattern: ${pattern}`);
+			source += pattern.slice(index, end + 1);
+			index = end;
+		} else {
+			source += char.replace(/[\\^$+.()|{}]/g, "\\$&");
+		}
+	}
+	return new RegExp(`${source}$`);
+}
+
+/** Resolve an exact source path or a bounded glob under the project root. */
+export function resolveEvaluationInputs(cwd: string, value: string): string[] {
+	if (!hasGlob(value)) return [resolveEvaluationInput(cwd, value)];
+	const resolvedPattern = resolve(cwd, value);
+	if (!inside(cwd, resolvedPattern)) throw new Error(`Evaluation input escapes the project root: ${value}`);
+	const relativePattern = relative(cwd, resolvedPattern).split("\\").join("/");
+	const firstGlob = relativePattern.search(/[?*\[]/);
+	const prefix = firstGlob < 0 ? relativePattern : relativePattern.slice(0, firstGlob);
+	const baseRelative = prefix.slice(0, prefix.lastIndexOf("/"));
+	const base = resolve(cwd, baseRelative || ".");
+	if (!inside(cwd, base) || !existsSync(base)) throw new Error(`Evaluation input glob base does not exist: ${value}`);
+	const pattern = globRegex(relativePattern);
+	const matches: string[] = [];
+	const walk = (directory: string): void => {
+		for (const entry of readdirSync(directory, { withFileTypes: true })) {
+			const child = join(directory, entry.name);
+			if (entry.isDirectory()) walk(child);
+			else if (pattern.test(relative(cwd, child).split("\\").join("/"))) matches.push(child);
+		}
+	};
+	walk(base);
+	if (matches.length === 0) throw new Error(`Evaluation input glob matched no files: ${value}`);
+	return matches.sort();
+}
+
 function digestPath(path: string): string {
 	if (statSync(path).isFile()) return sha256(readFileSync(path));
 	const entries: string[] = [];
@@ -187,6 +239,25 @@ export function readEvaluationContext(runDir: string): EvaluationContext | undef
 	} catch {
 		return undefined;
 	}
+}
+
+/** Re-read every frozen source and verify both source hashes and context fingerprint. */
+export function verifyEvaluationContext(cwd: string, runDir: string): { context?: EvaluationContext; errors: string[] } {
+	const context = readEvaluationContext(runDir);
+	if (!context) return { errors: ["evaluation_context.json is missing or invalid"] };
+	const errors: string[] = [];
+	for (const source of context.source_files) {
+		try {
+			const current = sourceFile(cwd, source.path, source.kind);
+			if (current.sha256 !== source.sha256) errors.push(`source hash changed: ${source.path}`);
+		} catch (error) {
+			errors.push(error instanceof Error ? error.message : String(error));
+		}
+	}
+	const withoutFingerprint = { ...context } as Record<string, unknown>;
+	delete withoutFingerprint.input_fingerprint;
+	if (sha256(canonical(withoutFingerprint)) !== context.input_fingerprint) errors.push("evaluation context fingerprint mismatch");
+	return errors.length > 0 ? { errors } : { context, errors: [] };
 }
 
 export function canonicalJson(value: unknown): string {

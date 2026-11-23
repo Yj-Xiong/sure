@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { SureHookContext, SureHookResult } from "@earendil-works/pi-coding-agent/hooks";
-import { writeOrVerifyEvaluationContext } from "../../../runtime/evaluation/context.ts";
+import { resolveEvaluationInputs, writeOrVerifyEvaluationContext } from "../../../runtime/evaluation/context.ts";
 import { artifactFingerprint, observeLoop } from "../../../runtime/evaluation/loop-guard.ts";
 import {
 	readToolRegistry,
@@ -105,12 +105,14 @@ export function preStart(ctx: SureHookContext): SureHookResult {
 		);
 	}
 	try {
+		const subjectiveSources = listArg(args.subjective_source).flatMap((value) => resolveEvaluationInputs(ctx.cwd, value));
+		const objectiveSources = listArg(args.objective_source).flatMap((value) => resolveEvaluationInputs(ctx.cwd, value));
 		const context = writeOrVerifyEvaluationContext({
 			cwd: ctx.cwd,
 			runId: ctx.run.runId,
 			taskManifest: args.task_manifest,
-			subjectiveSources: listArg(args.subjective_source),
-			objectiveSources: listArg(args.objective_source),
+			subjectiveSources,
+			objectiveSources,
 			metrics: listArg(args.objective_metrics),
 			analysisUnit: args.analysis_unit ?? "model_condition",
 			standards: ["ITU-T P.1401", "ITU-R BS.1284-2", "P.808", "ITU-R BS.1770", "ETSI TS 103 281 V1.3.1"],

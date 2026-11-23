@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "task_id", "task_version", "dataset_version", "engine_task", "sample_ids", "candidate_keys", "analysis_candidate_keys", "candidate_roles", "scale", "audio_policy", "interface_contract"],
+  "required": ["schema", "task_id", "task_version", "dataset_version", "engine_task", "sample_ids", "candidate_keys", "analysis_candidate_keys", "candidate_roles", "scale", "audio_policy", "interface_contract", "source_manifest_sha256"],
   "properties": {
     "schema": {"type": "string", "enum": ["sure.audio_eval.task_manifest.v1"]},
     "task_id": {"type": "string"},
@@ -19,8 +19,10 @@
     "interface_contract": {"$ref": "interface_contract.schema.json"},
     "metric_policies": {"type": "object", "additionalProperties": {"type": "object"}},
     "objective_metrics": {"type": ["object", "array"]},
+    "screening_policy": {"type": "object"},
     "engine_task": {"type": "string"},
+    "language": {"type": "string"},
     "standards": {"type": "array", "items": {"type": "string"}},
-    "source_manifest_sha256": {"type": "string"}
+    "source_manifest_sha256": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"}
   }
 }

@@ -125,6 +125,7 @@ def main() -> None:
     parser.add_argument("--task-manifest", dest="task_manifest", type=Path)
     parser.add_argument("--metric-plan", type=Path)
     parser.add_argument("--context", type=Path)
+    parser.add_argument("--tool-registry", type=Path)
     parser.add_argument("--audio-manifest", type=Path)
     parser.add_argument("--subjective", type=Path)
     parser.add_argument("--mos", type=Path)
@@ -135,6 +136,22 @@ def main() -> None:
     parser.add_argument("--report", type=Path, help="Write the run report after the final manifest.")
     parser.add_argument("--created-at", help="Deterministic UTC timestamp for the final manifest.")
     args = parser.parse_args()
+    # The release manifest must cover every upstream artifact. Use sibling defaults
+    # for files emitted by the same run when callers omit an optional path.
+    artifact_dir = args.output.parent
+    defaults = {
+        "tool_registry": artifact_dir / "tool_registry.json",
+        "context": artifact_dir / "evaluation_context.json",
+        "task_manifest": artifact_dir / "task_manifest_resolved.json",
+        "audio_manifest": artifact_dir / "audio_manifest.json",
+        "subjective": artifact_dir / "subjective_dedup.csv",
+        "mos": artifact_dir / "condition_mos.csv",
+        "ci95": artifact_dir / "condition_ci95.csv",
+        "objective": artifact_dir / "objective_scores.jsonl",
+    }
+    for name, path in defaults.items():
+        if getattr(args, name) is None and path.is_file():
+            setattr(args, name, path)
 
     analysis = load_json(args.analysis)
     manifest = load_json(args.task_manifest)
@@ -145,7 +162,7 @@ def main() -> None:
     metric_rows = analysis.get("metric_plan") if isinstance(analysis.get("metric_plan"), list) else metric_plan.get("metrics", [])
     correlations = analysis.get("correlations") if isinstance(analysis.get("correlations"), list) else []
     correlation_rows = [row for row in correlations if isinstance(row, dict)]
-    correlation_rows.sort(key=lambda row: (str(row.get("screening", "")), -(abs(float(row["pearson"])) if isinstance(row.get("pearson"), (int, float)) else -1.0), str(row.get("metric", ""))))
+    correlation_rows.sort(key=lambda row: (str(row.get("screening", "")), -(float(row["pearson"]) if isinstance(row.get("pearson"), (int, float)) else -1.0), str(row.get("metric", ""))))
     for index, row in enumerate(correlation_rows, 1):
         row.setdefault("rank", index)
     audio_items = audio.get("items", []) if isinstance(audio.get("items"), list) else []
@@ -188,6 +205,7 @@ def main() -> None:
             (args.analysis, "analysis_report"),
             (args.artifact_manifest, "final_manifest"),
             (args.context, "evaluation_context"),
+            (args.tool_registry, "tool_registry"),
             (args.task_manifest, "task_manifest"),
             (args.audio_manifest, "audio_manifest"),
             (args.subjective, "subjective_rows"),

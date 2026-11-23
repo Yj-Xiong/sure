@@ -21,11 +21,24 @@ class AnalyzeConditionsTest(unittest.TestCase):
     def test_screening_only_uses_selected_models(self) -> None:
         rows = []
         for candidate in ("model_a", "hidden_reference"):
-            scores = [50] * 7 + [100]
+            scores = [40, 45, 50, 50, 50, 55, 60, 100]
             rows.extend({"sample_id": "s1", "candidate_key": candidate, "listener_id": f"l{index}", "score": str(score)} for index, score in enumerate(scores))
         flagged, detail = screen_ratings(rows, {"model_a"})
         self.assertEqual({item["candidate_key"] for item in detail["flagged"]}, {"model_a"})
         self.assertEqual({item[2] for item in flagged}, {"model_a"})
+
+    def test_screening_uses_model_count_and_positive_iqr(self) -> None:
+        rows = [{"sample_id": "s1", "candidate_key": "model_a", "listener_id": "l{}".format(index), "score": str(50 if index < 7 else 100)} for index in range(8)]
+        flagged, _ = screen_ratings(rows[:1], {"model_a"})
+        self.assertFalse(flagged)
+        flagged, _ = screen_ratings(rows, {"model_a"})
+        self.assertFalse(flagged)
+        two_models = rows + [{**row, "candidate_key": "model_b"} for row in rows]
+        flagged, _ = screen_ratings(two_models[:1], {"model_a", "model_b"})
+        self.assertFalse(flagged)
+        equal_rows = [{"sample_id": "s1", "candidate_key": "model_a", "listener_id": "l{}".format(index), "score": "50"} for index in range(8)]
+        flagged, _ = screen_ratings(equal_rows, {"model_a"})
+        self.assertFalse(flagged)
 
     def test_model_only_before_after_per_metric(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -35,10 +48,12 @@ class AnalyzeConditionsTest(unittest.TestCase):
                 "task_id": "t1",
                 "task_version": "v1",
                 "dataset_version": "d1",
+                "sample_ids": ["s1", "s2"],
                 "candidate_keys": ["hidden_reference", "unprocessed", "model_a", "model_b"],
                 "analysis_candidate_keys": ["model_a", "model_b"],
                 "candidate_roles": {"hidden_reference": "hidden_reference", "unprocessed": "unprocessed", "model_a": "model", "model_b": "model"},
                 "excluded_candidates_from_correlation": ["hidden_reference", "unprocessed"],
+                "audio_policy": {"audio_version": "a1"},
             }), encoding="utf-8")
             plan = run / "plan.json"
             plan.write_text(json.dumps({"metrics": [{"metric": "stoi", "type": "intrusive", "direction": "higher_better", "reference_mode": "paired"}, {"metric": "nisqa", "type": "non_intrusive", "direction": "higher_better", "reference_mode": "none"}]}), encoding="utf-8")
@@ -53,7 +68,7 @@ class AnalyzeConditionsTest(unittest.TestCase):
             rows = []
             for sample, values in (("s1", (4, 0.4)), ("s2", (5, 0.5))):
                 for candidate, index in (("hidden_reference", 9), ("unprocessed", 1), ("model_a", values[0]), ("model_b", values[0] + 1)):
-                    rows.extend([{"task_id": "t1", "sample_id": sample, "candidate_key": candidate, "metric": "stoi", "value": index, "direction": "higher_better", "reference_mode": "paired", "engine_commit": "e"}, {"task_id": "t1", "sample_id": sample, "candidate_key": candidate, "metric": "nisqa", "value": index / 10, "direction": "higher_better", "reference_mode": "none", "engine_commit": "e"}])
+                    rows.extend([{"task_id": "t1", "task_version": "v1", "dataset_version": "d1", "audio_version": "a1", "sample_id": sample, "candidate_key": candidate, "metric": "stoi", "value": index, "direction": "higher_better", "reference_mode": "paired", "engine_commit": "e"}, {"task_id": "t1", "task_version": "v1", "dataset_version": "d1", "audio_version": "a1", "sample_id": sample, "candidate_key": candidate, "metric": "nisqa", "value": index / 10, "direction": "higher_better", "reference_mode": "none", "engine_commit": "e"}])
             objective.write_text("\n".join(json.dumps(row) for row in rows) + "\n", encoding="utf-8")
             output = run / "analysis.json"
             subprocess.run([sys.executable, str(SCRIPT), "--mos", str(mos), "--objective", str(objective), "--output", str(output), "--task-id", "t1", "--manifest", str(manifest), "--metric-plan", str(plan)], check=True)

@@ -10,7 +10,7 @@
     "dedup_path": {"type": "string"},
     "latest_valid_rule": {"type": "string"},
     "complete_groups": {"type": "integer", "minimum": 0},
-    "status": {"type": "string", "enum": ["success", "failed"]},
+    "status": {"type": "string", "enum": ["success", "success_with_rejections", "failed"]},
     "invalid_rows": {"type": "integer", "minimum": 0},
     "duplicate_rows": {"type": "integer", "minimum": 0},
     "task_version": {"type": ["string", "null"]},

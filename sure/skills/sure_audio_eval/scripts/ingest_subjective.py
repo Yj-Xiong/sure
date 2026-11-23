@@ -66,7 +66,9 @@ def parse_timestamp(value: str) -> datetime | None:
 
 
 def normalize_listener(value: str) -> str:
-    return " ".join(str(value).strip().casefold().split())
+    # Whitespace is presentation noise. Listener IDs remain case-sensitive so
+    # explicitly distinct IDs do not silently collapse into one participant.
+    return " ".join(str(value).strip().split())
 
 
 def manifest_candidates(manifest: dict[str, Any]) -> list[str]:
@@ -269,7 +271,7 @@ def main() -> None:
         "latest_valid_rule": "latest valid submitted_at per task_id × normalized_listener_id × sample_id × candidate_key",
         "complete_group_rule": "listener_id × sample_id contains every manifest candidate exactly once",
         "complete_groups": complete_groups, "valid_rows": len(valid), "dedup_rows": len(latest),
-        "status": "success" if not invalid else "success", "invalid_rows": len(invalid),
+        "status": "failed" if not latest else ("success" if not invalid else "success_with_rejections"), "invalid_rows": len(invalid),
         "duplicate_rows": len(valid) - len(latest), "manifest_path": str(args.manifest) if args.manifest else None,
         "audio_manifest_path": str(args.audio_manifest) if args.audio_manifest else None,
     }

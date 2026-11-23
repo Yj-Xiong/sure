@@ -61,6 +61,12 @@ def engine_commit(root: Path) -> str:
         raise RuntimeError(f"evaluation engine is not a readable git checkout: {root}: {rev.stderr.strip()}")
     if Path(top.stdout.strip()).resolve() != root.resolve():
         raise RuntimeError(f"evaluation engine checkout is not independent: {root}")
+    dirty = subprocess.run(
+        ["git", "-c", f"safe.directory={root}", "status", "--porcelain"],
+        cwd=root, env=env, capture_output=True, text=True, check=False,
+    )
+    if dirty.returncode or dirty.stdout.strip():
+        raise RuntimeError(f"evaluation engine checkout is not clean: {root}")
     return rev.stdout.strip()
 
 
@@ -137,15 +143,46 @@ def load_rows(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
-def normalize_existing(rows: list[dict[str, Any]], task_id: str, commit: str) -> list[dict[str, Any]]:
+def normalize_existing(rows: list[dict[str, Any]], task_id: str, commit: str, manifest: dict[str, Any], plan: dict[str, Any], audio_manifest: dict[str, Any]) -> list[dict[str, Any]]:
     seen: set[tuple[str, str, str]] = set()
     out: list[dict[str, Any]] = []
+    declared_samples = {str(value) for value in manifest.get("sample_ids", [])}
+    declared_candidates = {str(value) for value in manifest.get("candidate_keys", [])}
+    planned = {
+        str(item.get("metric")): item
+        for item in plan.get("metrics", [])
+        if isinstance(item, dict) and item.get("participates_in_model_correlation", True) is not False
+    }
+    task_version = str(manifest.get("task_version") or "")
+    dataset_version = str(manifest.get("dataset_version") or "")
+    audio_version = str((manifest.get("audio_policy") or {}).get("audio_version") or "")
+    audio_hashes = {
+        (str(item.get("sample_id")), str(item.get("candidate_key"))): str(item.get("audio_sha256"))
+        for item in audio_manifest.get("items", [])
+        if isinstance(item, dict) and item.get("sample_id") and item.get("candidate_key") and item.get("audio_sha256")
+    }
+    required = ("task_version", "dataset_version", "audio_version", "sample_id", "candidate_key", "metric", "direction", "reference_mode", "pipeline_id", "audio_sha256", "engine_commit", "capability_manifest_sha256")
     for row in rows:
         if row.get("task_id") != task_id:
             raise ValueError("objective row task_id mismatch")
-        for field in ("sample_id", "candidate_key", "metric", "direction", "reference_mode"):
+        for field in required:
             if not isinstance(row.get(field), str) or not row[field]:
                 raise ValueError(f"objective row missing {field}")
+        if row["task_version"] != task_version or row["dataset_version"] != dataset_version or row["audio_version"] != audio_version:
+            raise ValueError("objective row task/dataset/audio version mismatch")
+        if row["sample_id"] not in declared_samples or row["candidate_key"] not in declared_candidates:
+            raise ValueError("objective row is outside task manifest whitelist")
+        spec = planned.get(str(row["metric"]))
+        if spec is None:
+            raise ValueError(f"objective metric is absent from metric plan: {row['metric']}")
+        if row["direction"] != spec.get("direction") or row["reference_mode"] != spec.get("reference_mode") or row["pipeline_id"] != spec.get("pipeline_id"):
+            raise ValueError(f"objective row semantics differ from metric plan: {row['metric']}")
+        if str(row["engine_commit"]) != commit:
+            raise ValueError("objective row engine_commit differs from locked commit")
+        if row["capability_manifest_sha256"] != str(plan.get("capability_manifest_sha256") or ""):
+            raise ValueError("objective row capability hash differs from metric plan")
+        if audio_hashes.get((row["sample_id"], row["candidate_key"])) != row["audio_sha256"]:
+            raise ValueError("objective row audio_sha256 differs from audio manifest")
         value = row.get("value")
         if not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(value):
             raise ValueError("objective value must be finite")
@@ -160,7 +197,7 @@ def normalize_existing(rows: list[dict[str, Any]], task_id: str, commit: str) ->
         if key in seen:
             raise ValueError(f"duplicate objective condition: {key}")
         seen.add(key)
-        out.append({**row, "engine_commit": row.get("engine_commit", commit)})
+        out.append({**row, "engine_commit": row["engine_commit"]})
     return out
 
 
@@ -192,21 +229,29 @@ def checked_hash(path: str, declared: Any, field: str) -> str:
     return actual
 
 
-def route_for(caps: dict[str, Any], task: str, metric: str) -> dict[str, Any]:
+def route_for(caps: dict[str, Any], task: str, metric: str, pipeline_id: str | None = None, language: str | None = None) -> dict[str, Any]:
     task = {"speech_enhancement": "se", "speech-enhancement": "se"}.get(task, task)
     profile = (caps.get("tasks") or {}).get(task)
     if not isinstance(profile, dict) or profile.get("ready") is not True:
         raise ValueError(f"task {task!r} is not ready in the locked capability manifest")
     target = normalize_metric(metric)
+    matches: list[dict[str, Any]] = []
     for route in profile.get("routes") or []:
         if not isinstance(route, dict):
             continue
         names = {normalize_metric(route.get("metric", ""))}
         names.update(normalize_metric(x) for x in route.get("aliases") or [])
-        if target in names:
-            return route
+        route_pipeline = str(route.get("pipeline_id") or "")
+        concrete_pipeline = route_pipeline.replace("{language}", str(language)) if language else route_pipeline
+        if target in names and (pipeline_id is None or concrete_pipeline == pipeline_id or route_pipeline == pipeline_id):
+            match = dict(route)
+            match["pipeline_id"] = concrete_pipeline
+            matches.append(match)
+    if len(matches) == 1: return matches[0]
+    if len(matches) > 1: raise ValueError(f"metric {metric!r} has multiple routes; declare an exact pipeline_id")
     supported = sorted(normalize_metric(x.get("metric", "")) for x in profile.get("routes") or [] if isinstance(x, dict))
-    raise ValueError(f"metric {metric!r} has no locked route for task {task!r}; supported={supported}")
+    suffix = f" pipeline_id={pipeline_id!r}" if pipeline_id else ""
+    raise ValueError(f"metric {metric!r}{suffix} has no locked route for task {task!r}; supported={supported}")
 
 
 def reference_mode(route: dict[str, Any]) -> str:
@@ -239,12 +284,12 @@ def engine_python(runtime: dict[str, Any]) -> str:
     return executable
 
 
-def run_engine(python: str, root: Path, metric: str, samples: Path, output: Path, device: str) -> tuple[dict[str, Any], str]:
+def run_engine(python: str, root: Path, task: str, metric: str, pipeline_id: str, samples: Path, output: Path, device: str) -> tuple[dict[str, Any], str]:
     code = """
 import json, sys
 from sure_eval.evaluation.cli_adapters import build_pipeline_spec, run_pipeline_spec
-task, metric, samples, output, device = sys.argv[1:]
-spec = build_pipeline_spec(task, metric=metric)
+task, metric, pipeline_id, samples, output, device = sys.argv[1:]
+spec = build_pipeline_spec(task, pipeline_id=pipeline_id)
 summary = run_pipeline_spec(spec, output_dir=output, samples_jsonl=samples, device=device)
 print(json.dumps(summary, ensure_ascii=False))
 """
@@ -252,7 +297,7 @@ print(json.dumps(summary, ensure_ascii=False))
     env.pop("__PYVENV_LAUNCHER__", None)
     env["PYTHONPATH"] = str(root / "src")
     completed = subprocess.run(
-        [python, "-c", code, "se", metric, str(samples), str(output), device],
+        [python, "-c", code, task, metric, pipeline_id, str(samples), str(output), device],
         cwd=root, env=env, capture_output=True, text=True, check=False, timeout=3600,
     )
     if completed.returncode:
@@ -282,7 +327,7 @@ def scores_from_report(report: dict[str, Any], metric: str) -> dict[str, float]:
     return values
 
 
-def compute_engine(rows: list[dict[str, Any]], task_id: str, task_version: str, dataset_version: str, audio_version: str, metrics: list[str], task: str, root: Path, identity: dict[str, Any], runtime: dict[str, Any], output: Path, device: str, metric_directions: dict[str, str] | None = None) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
+def compute_engine(rows: list[dict[str, Any]], task_id: str, task_version: str, dataset_version: str, audio_version: str, metrics: list[str], task: str, root: Path, identity: dict[str, Any], runtime: dict[str, Any], output: Path, device: str, metric_directions: dict[str, str] | None = None, metric_pipelines: dict[str, str] | None = None, language: str | None = None) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
     conditions: list[dict[str, Any]] = []
     seen: set[tuple[str, str]] = set()
     for condition_index, row in enumerate(rows):
@@ -320,7 +365,11 @@ def compute_engine(rows: list[dict[str, Any]], task_id: str, task_version: str, 
     for metric in metrics:
         metric_name = str(metric).strip()
         normalized = normalize_metric(metric_name)
-        route = route_for(caps, task, normalized)
+        pipeline_id = (metric_pipelines or {}).get(metric_name)
+        route = route_for(caps, task, normalized, pipeline_id, language)
+        pipeline_id = str(route.get("pipeline_id") or pipeline_id or "")
+        if not pipeline_id:
+            raise RuntimeError(f"metric route {metric_name} has no pipeline_id")
         mode = reference_mode(route)
         if mode == "paired" and any(not item["reference_audio"] for item in conditions):
             raise ValueError(f"full-reference metric {metric!r} requires reference_audio for every condition")
@@ -339,9 +388,9 @@ def compute_engine(rows: list[dict[str, Any]], task_id: str, task_version: str, 
                 if mode == "paired":
                     payload["reference_audio"] = item["reference_audio"]
                 handle.write(json.dumps(payload, ensure_ascii=False) + "\n")
-        report, stdout = run_engine(python, root, normalized, samples_path, metric_dir, device)
+        report, stdout = run_engine(python, root, task, normalized, pipeline_id, samples_path, metric_dir, device)
         values = scores_from_report(report, normalized)
-        expected_pipeline_id = str(route.get("pipeline_id") or "")
+        expected_pipeline_id = pipeline_id
         reported_pipeline_id = str(report.get("pipeline_id") or "")
         if expected_pipeline_id and reported_pipeline_id and reported_pipeline_id != expected_pipeline_id:
             raise RuntimeError(f"engine route identity mismatch for {metric}: expected={expected_pipeline_id} actual={reported_pipeline_id}")
@@ -398,6 +447,7 @@ def main() -> int:
     parser.add_argument("--engine-root", type=Path, default=DEFAULT_ENGINE_ROOT)
     parser.add_argument("--runtime-spec", type=Path, default=DEFAULT_RUNTIME)
     parser.add_argument("--capabilities", type=Path, default=DEFAULT_CAPS)
+    parser.add_argument("--audio-manifest", type=Path)
     args = parser.parse_args()
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.report.parent.mkdir(parents=True, exist_ok=True)
@@ -422,24 +472,31 @@ def main() -> int:
                     row[field] = str(source_relative if source_relative.exists() else project_relative)
         metric_plan = read_json(args.metric_plan) if args.metric_plan and args.metric_plan.is_file() else None
         planned_directions: dict[str, str] | None = None
+        planned_pipelines: dict[str, str] | None = None
         if metric_plan is not None:
             if metric_plan.get("task_id") != args.task_id:
                 raise ValueError("metric plan task_id mismatch")
             planned_entries = [item for item in metric_plan.get("metrics", []) if isinstance(item, dict) and item.get("participates_in_model_correlation", True) is not False]
             planned_metrics = [str(item.get("metric")) for item in planned_entries if item.get("metric")]
             planned_directions = {str(item["metric"]): str(item["direction"]) for item in planned_entries if item.get("metric") and item.get("direction")}
+            planned_pipelines = {str(item["metric"]): str(item["pipeline_id"]) for item in planned_entries if item.get("metric") and item.get("pipeline_id")}
             requested_metrics = [item.strip() for item in (args.metrics or "").split(",") if item.strip()]
             if requested_metrics and set(requested_metrics) != set(planned_metrics):
                 raise ValueError("requested objective metrics differ from objective_metric_plan.json")
             args.metrics = ",".join(planned_metrics)
         report["metrics"] = [{"metric": str(row.get("metric") or "unresolved"), "route_status": "pending"} for row in rows if row.get("metric")]
         if all("value" in row for row in rows):
+            if args.task_manifest is None or metric_plan is None:
+                raise ValueError("--task-manifest and --metric-plan are required for precomputed objective rows")
+            manifest = read_json(args.task_manifest)
+            audio_manifest_path = args.audio_manifest or (args.report.parent / "audio_manifest.json")
+            audio_manifest = read_json(audio_manifest_path) if audio_manifest_path.is_file() else {}
             commit = args.engine_commit or str(rows[0].get("engine_commit") or "")
             if not commit:
                 raise ValueError("--engine-commit is required for precomputed objective rows")
             if args.engine_commit and any(str(row.get("engine_commit") or commit) != args.engine_commit for row in rows):
                 raise ValueError("precomputed objective row engine_commit differs from requested locked commit")
-            normalized = normalize_existing(rows, args.task_id, commit)
+            normalized = normalize_existing(rows, args.task_id, commit, manifest, metric_plan, audio_manifest)
             args.output.write_text("".join(json.dumps(row, sort_keys=True) + "\n" for row in normalized), encoding="utf-8")
             report.update({"metrics": [{"metric": metric, "route_status": "precomputed"} for metric in sorted({str(x["metric"]) for x in normalized})], "row_count": len(normalized), "engine_commit": commit, "status": "success"})
         else:
@@ -462,6 +519,7 @@ def main() -> int:
             task_id = str(manifest.get("task_id") or args.task_id)
             if task_id != args.task_id:
                 raise ValueError(f"task manifest task_id mismatch: {task_id} != {args.task_id}")
+            engine_task = str(manifest.get("engine_task") or args.task)
             declared_samples = {str(item) for item in manifest.get("sample_ids") or []}
             declared_candidates = {str(item) for item in manifest.get("candidate_keys") or []}
             if not declared_samples or not declared_candidates:
@@ -488,7 +546,8 @@ def main() -> int:
             device = args.device or os.environ.get("SURE_AUDIO_EVAL_DEVICE", "").strip()
             if not device:
                 raise ValueError("--device (or SURE_AUDIO_EVAL_DEVICE) is required; no silent CPU/GPU fallback is allowed")
-            scores, routes, route_plan = compute_engine(rows, task_id, task_version, dataset_version, audio_version, metrics, args.task, args.engine_root.resolve(), identity, runtime, args.output, device, planned_directions)
+            language = str(manifest.get("language") or "") or None
+            scores, routes, route_plan = compute_engine(rows, task_id, task_version, dataset_version, audio_version, metrics, engine_task, args.engine_root.resolve(), identity, runtime, args.output, device, planned_directions, planned_pipelines, language)
             args.output.write_text("".join(json.dumps(x, sort_keys=True) + "\n" for x in scores), encoding="utf-8")
             route_path = args.output.parent / "objective_route_plan.json"
             route_path.write_text(json.dumps(route_plan, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

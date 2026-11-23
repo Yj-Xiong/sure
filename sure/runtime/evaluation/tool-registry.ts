@@ -103,7 +103,7 @@ export const DEFAULT_EVALUATION_TOOLS: EvaluationTool[] = [
 		id: "render_report",
 		unit: "render_report",
 		script: "scripts/render_report.py",
-		inputs: ["analysis_report.json"],
+		inputs: ["evaluation_context.json", "tool_registry.json", "task_manifest_resolved.json", "audio_manifest.json", "subjective_dedup.csv", "condition_mos.csv", "condition_ci95.csv", "objective_scores.jsonl", "analysis_report.json"],
 		outputs: ["analysis.html", "final_manifest.json", "main_agent_run_report.json"],
 		mode: "deterministic",
 		requires_reference: false,

@@ -53,8 +53,8 @@
       "additionalProperties": false,
       "required": ["relation", "processing_stage"],
       "properties": {
-        "relation": {"type": "string", "enum": ["clean_noisy_processed"]},
-        "processing_stage": {"type": "string", "enum": ["dataset", "task"]}
+        "relation": {"type": "string", "enum": ["clean_noisy_processed", "text_to_speech", "reference_text", "none"]},
+        "processing_stage": {"type": "string", "enum": ["dataset", "task", "generation", "none"]}
       }
     },
     "model_targets": {

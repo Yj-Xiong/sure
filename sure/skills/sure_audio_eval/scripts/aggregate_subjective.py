@@ -109,7 +109,7 @@ def main() -> None:
     for row in rows:
         if task_id and row.get("task_id") != task_id:
             continue
-        listener = " ".join((row.get("listener_id") or row.get("user_id") or "").strip().casefold().split())
+        listener = " ".join((row.get("listener_id") or row.get("user_id") or "").strip().split())
         sample = row.get("sample_id", "")
         if listener and sample:
             by_listener_sample.setdefault((listener, sample), []).append(row)
@@ -128,7 +128,7 @@ def main() -> None:
             continue
         if declared_candidates and candidate not in declared_candidates:
             continue
-        listener = " ".join((row.get("listener_id") or row.get("user_id") or "").strip().casefold().split())
+        listener = " ".join((row.get("listener_id") or row.get("user_id") or "").strip().split())
         if (listener, sample) not in complete_groups:
             excluded_incomplete += 1
             continue

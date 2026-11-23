@@ -113,8 +113,17 @@ def standards_from_markdown(path: Path) -> dict[str, list[str]]:
     return mapping
 
 
-def route_for_metric(routes: list[Any], metric: str, policy: dict[str, Any]) -> dict[str, Any]:
-    matches = [route for route in routes if isinstance(route, dict) and norm(route.get("metric")) == metric]
+def route_for_metric(routes: list[Any], metric: str, policy: dict[str, Any], language: str | None = None) -> dict[str, Any]:
+    matches: list[dict[str, Any]] = []
+    for route in routes:
+        if not isinstance(route, dict) or norm(route.get("metric")) != metric:
+            continue
+        candidate = dict(route)
+        route_id = str(candidate.get("pipeline_id") or "")
+        if "{language}" in route_id:
+            if not language: continue
+            candidate["pipeline_id"] = route_id.replace("{language}", language)
+        matches.append(candidate)
     pipeline = policy.get("pipeline_id")
     if pipeline:
         matches = [route for route in matches if route.get("pipeline_id") == pipeline]
@@ -193,7 +202,8 @@ def build_plan(args: argparse.Namespace) -> dict[str, Any]:
     rows: list[dict[str, Any]] = []
     for metric in requested:
         policy = policies.get(metric, {})
-        route = route_for_metric(routes, metric, policy)
+        language = str(manifest.get("language") or "") or None
+        route = route_for_metric(routes, metric, policy, language)
         metric_type, reference_mode, matching, required, optional, participates = route_semantics(route, policy, metric)
         metric_direction, direction_source = direction(route, policy, task, metric)
         rows.append({"metric": metric, "type": metric_type, "direction": metric_direction, "direction_source": direction_source, "reference_mode": reference_mode, "pipeline_id": text(route.get("pipeline_id"), f"route {metric}.pipeline_id"), "input_contract": text(route.get("input_contract"), f"route {metric}.input_contract"), "required_audio_inputs": required, "optional_audio_inputs": optional, "matching_reference_required": matching, "participates_in_model_correlation": participates, "engine_route": dict(route)})

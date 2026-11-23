@@ -84,7 +84,7 @@ def correlation(xs: list[float], ys: list[float]) -> tuple[float | None, float |
 
 
 def normalize_listener(value: Any) -> str:
-    return " ".join(str(value or "").strip().casefold().split())
+    return " ".join(str(value or "").strip().split())
 
 
 def role_for(candidate: str, manifest: dict[str, Any]) -> str:
@@ -136,7 +136,13 @@ def quantile(values: list[float], probability: float) -> float:
     return ordered[low] + (ordered[high] - ordered[low]) * (index - low)
 
 
-def screen_ratings(rows: list[dict[str, str]], model_candidates_set: set[str]) -> tuple[set[tuple[str, str, str]], dict[str, Any]]:
+def minimum_screening_ratings(manifest: dict[str, Any], model_candidates_set: set[str]) -> int:
+    # The sensitivity rule is frozen across the standalone screener and the
+    # joint analyzer. Eight ratings are the minimum group size.
+    return 8
+
+
+def screen_ratings(rows: list[dict[str, str]], model_candidates_set: set[str], min_ratings: int | None = None) -> tuple[set[tuple[str, str, str]], dict[str, Any]]:
     """Flag individual ratings using subjective values only."""
     groups: dict[tuple[str, str], list[tuple[str, float]]] = {}
     for row in rows:
@@ -153,17 +159,19 @@ def screen_ratings(rows: list[dict[str, str]], model_candidates_set: set[str]) -
     flagged: set[tuple[str, str, str]] = set()
     details: list[dict[str, Any]] = []
     for (sample_id, candidate_key), values in sorted(groups.items()):
-        if len(values) < 8:
+        if len(values) < (min_ratings or 8):
             continue
         scores = [score for _, score in values]
         q1, q3, median = quantile(scores, 0.25), quantile(scores, 0.75), statistics.median(scores)
+        if q3 <= q1:
+            continue
         bound = 3.0 * (q3 - q1)
         for listener, score in values:
             if (score < q1 - bound or score > q3 + bound) and abs(score - median) >= 20:
                 key = (listener, sample_id, candidate_key)
                 flagged.add(key)
                 details.append({"sample_id": sample_id, "candidate_key": candidate_key, "listener_id": listener, "score": score, "reason": "3×IQR and 20-point median deviation"})
-    return flagged, {"rule_version": SCREENING_RULE_VERSION, "rule": "rating-level 3×IQR + n≥8 + median deviation≥20", "objective_independent": True, "flagged_count": len(flagged), "flagged": details, "raw_scores_unchanged": True}
+    return flagged, {"rule_version": SCREENING_RULE_VERSION, "minimum_ratings": min_ratings or 8, "rule": "rating-level 3×IQR + n≥8 + median deviation≥20", "objective_independent": True, "flagged_count": len(flagged), "flagged": details, "raw_scores_unchanged": True}
 
 
 def mos_from_ratings(rows: list[dict[str, str]], excluded: set[tuple[str, str, str]], model_candidates_set: set[str]) -> dict[tuple[str, str], float]:
@@ -198,21 +206,31 @@ def read_mos(path: Path) -> dict[tuple[str, str], float]:
     return values
 
 
-def read_objective(path: Path, task_id: str, plan: dict[str, Any]) -> tuple[dict[str, dict[tuple[str, str], float]], dict[str, dict[str, Any]]]:
+def read_objective(path: Path, task_id: str, plan: dict[str, Any], manifest: dict[str, Any], audio_manifest: dict[str, Any]) -> tuple[dict[str, dict[tuple[str, str], float]], dict[str, dict[str, Any]]]:
     values: dict[str, dict[tuple[str, str], float]] = {}
     metadata: dict[str, dict[str, Any]] = {}
     planned = {str(item.get("metric")): item for item in plan.get("metrics", []) if isinstance(item, dict) and item.get("metric")}
+    samples = {str(value) for value in manifest.get("sample_ids", [])}
+    candidates = {str(value) for value in manifest.get("candidate_keys", [])}
+    audio_hashes = {(str(item.get("sample_id")), str(item.get("candidate_key"))): str(item.get("audio_sha256")) for item in audio_manifest.get("items", []) if isinstance(item, dict) and item.get("sample_id") and item.get("candidate_key") and item.get("audio_sha256")}
+    raw_rows: list[dict[str, Any]] = []
     with path.open(encoding="utf-8") as handle:
         for line in handle:
             if not line.strip():
                 continue
             row = json.loads(line)
-            if not isinstance(row, dict) or row.get("task_id") not in (None, task_id):
+            if isinstance(row, dict):
+                raw_rows.append(row)
+            if not isinstance(row, dict) or row.get("task_id") != task_id:
                 continue
             metric = str(row.get("metric", ""))
             sample_id, candidate = str(row.get("sample_id", "")), str(row.get("candidate_key", ""))
             if not metric or not sample_id or not candidate:
                 continue
+            if sample_id not in samples or candidate not in candidates:
+                raise ValueError(f"objective condition is outside the task manifest: {sample_id} × {candidate}")
+            if row.get("task_version") != manifest.get("task_version") or row.get("dataset_version") != manifest.get("dataset_version") or row.get("audio_version") != (manifest.get("audio_policy") or {}).get("audio_version"):
+                raise ValueError("objective row task/dataset/audio version mismatch")
             if metric not in planned:
                 raise ValueError(f"objective metric {metric} is absent from objective_metric_plan.json")
             if planned[metric].get("participates_in_model_correlation", True) is False:
@@ -223,6 +241,8 @@ def read_objective(path: Path, task_id: str, plan: dict[str, Any]) -> tuple[dict
                 continue
             if not math.isfinite(value):
                 continue
+            if audio_hashes and row.get("audio_sha256") != audio_hashes.get((sample_id, candidate)):
+                raise ValueError(f"objective audio hash mismatch: {sample_id} × {candidate}")
             declared = planned.get(metric, {})
             direction = str(declared.get("direction", row.get("direction", "")))
             planned_mode = str(declared.get("reference_mode", ""))
@@ -236,6 +256,16 @@ def read_objective(path: Path, task_id: str, plan: dict[str, Any]) -> tuple[dict
                 raise ValueError(f"duplicate objective condition for metric {metric}: {sample_id} × {candidate}")
             values[metric][key] = value
             metadata.setdefault(metric, {"metric_type": declared.get("type", row.get("metric_type", row.get("type"))), "direction": direction, "reference_mode": declared.get("reference_mode", row.get("reference_mode")), "pipeline_id": row.get("pipeline_id", declared.get("pipeline_id")), "engine_commit": row.get("engine_commit"), "runtime_lock": row.get("runtime_lock", row.get("runtime_lock_sha256")), "capability_manifest_sha256": row.get("capability_manifest_sha256", row.get("capabilities_sha256"))})
+    # The strict objective contract is available in the shared script bundle.
+    # Older callers without an audio manifest retain the lightweight reader
+    # path, while full joint analysis validates the complete objective table.
+    if audio_manifest:
+        try:
+            from objective_contract import validate_objective_rows
+        except ImportError:
+            validate_objective_rows = None
+        if validate_objective_rows is not None:
+            validate_objective_rows(raw_rows, manifest, plan, audio_manifest)
     return values, metadata
 
 
@@ -263,9 +293,23 @@ def main() -> None:
     if args.subjective and args.subjective.is_file():
         with args.subjective.open(newline="", encoding="utf-8-sig") as handle:
             rows = list(csv.DictReader(handle))
-    flagged, screening_detail = screen_ratings(rows, declared_models) if rows else (set(), {"rule_version": SCREENING_RULE_VERSION, "rule": "not run; no subjective source supplied", "objective_independent": True, "flagged_count": 0, "flagged": [], "raw_scores_unchanged": True})
+    min_ratings = minimum_screening_ratings(manifest, declared_models)
+    flagged, screening_detail = screen_ratings(rows, declared_models, min_ratings) if rows else (set(), {"rule_version": SCREENING_RULE_VERSION, "rule": "not run; no subjective source supplied", "objective_independent": True, "flagged_count": 0, "flagged": [], "raw_scores_unchanged": True})
+    if args.screening_report and args.screening_report.is_file():
+        supplied = read_json(args.screening_report)
+        if supplied.get("rule_version") != SCREENING_RULE_VERSION or supplied.get("objective_independent") is not True:
+            raise ValueError("screening report rule version or objective independence mismatch")
+        supplied_flagged = supplied.get("flagged") if isinstance(supplied.get("flagged"), list) else []
+        supplied_flagged_set = {
+            (normalize_listener(item.get("listener_id")), str(item.get("sample_id", "")), str(item.get("candidate_key", "")))
+            for item in supplied_flagged if isinstance(item, dict)
+        }
+        if supplied_flagged_set != flagged or supplied.get("flagged_count") != len(supplied_flagged_set) or supplied.get("raw_scores_unchanged") is not True:
+            raise ValueError("screening report is stale relative to the current subjective rows")
+        flagged = supplied_flagged_set
+        screening_detail = supplied
     mos_after = mos_from_ratings(rows, flagged, declared_models) if rows else dict(mos_before)
-    objective, metadata = read_objective(args.objective, args.task_id, plan)
+    objective, metadata = read_objective(args.objective, args.task_id, plan, manifest, read_json(args.audio_manifest))
     all_candidates = {key[1] for values in objective.values() for key in values} | {key[1] for key in mos_before}
     if not declared_models:
         raise ValueError("task manifest must declare at least one model candidate role")

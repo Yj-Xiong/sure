@@ -1,12 +1,20 @@
 #!/usr/bin/env python3
 """Create a rating-level sensitivity table without changing raw scores."""
 
+from __future__ import annotations
+
 import argparse
 import csv
 import json
 import math
 import statistics
 from pathlib import Path
+
+SCREENING_RULE_VERSION = "rating-level-3iqr-median-deviation-v1"
+
+
+def normalize_listener(value: object) -> str:
+    return " ".join(str(value or "").strip().split())
 
 
 def selected_models(path: Path) -> set[str]:
@@ -25,6 +33,10 @@ def selected_models(path: Path) -> set[str]:
     return models
 
 
+def minimum_ratings(manifest: dict) -> int:
+    return 8
+
+
 def quantile(values: list[float], probability: float) -> float:
     ordered = sorted(values)
     index = probability * (len(ordered) - 1)
@@ -40,10 +52,14 @@ def main() -> None:
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument("--manifest", type=Path, required=True)
     args = parser.parse_args()
+    manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
     models = selected_models(args.manifest)
+    min_count = minimum_ratings(manifest)
     rows = list(csv.DictReader(args.input.open(newline="", encoding="utf-8-sig")))
     groups = {}
     for row in rows:
+        if str(row.get("group_complete", "true")).casefold() == "false":
+            continue
         key = (row.get("sample_id", ""), row.get("candidate_key", ""))
         if key[1] not in models:
             continue
@@ -53,18 +69,21 @@ def main() -> None:
             continue
     flagged = []
     for key, values in groups.items():
-        if len(values) < 8:
+        if len(values) < min_count:
             continue
         scores = [score for _, score in values]
         q1 = quantile(scores, 0.25)
         q3 = quantile(scores, 0.75)
         iqr = q3 - q1
+        if iqr <= 0:
+            continue
         median = statistics.median(scores)
         for row, score in values:
             outside = score < q1 - 3 * iqr or score > q3 + 3 * iqr
             if outside and abs(score - median) >= 20:
-                flagged.append({"sample_id": key[0], "candidate_key": key[1], "listener_id": row.get("listener_id", row.get("user_id", "")), "score": score, "reason": "3×IQR and 20-point median deviation"})
-    args.report.write_text(json.dumps({"schema": "sure.audio_eval.screening.v1", "rule": "rating-level 3×IQR + n≥8 + median deviation≥20; objective-independent", "flagged_count": len(flagged), "flagged": flagged, "raw_scores_unchanged": True}, indent=2) + "\n", encoding="utf-8")
+                flagged.append({"sample_id": key[0], "candidate_key": key[1], "listener_id": normalize_listener(row.get("listener_id", row.get("user_id", ""))), "score": score, "reason": "3×IQR and 20-point median deviation"})
+    args.report.parent.mkdir(parents=True, exist_ok=True)
+    args.report.write_text(json.dumps({"schema": "sure.audio_eval.screening.v1", "rule_version": SCREENING_RULE_VERSION, "minimum_ratings": min_count, "rule": "rating-level 3×IQR + n≥8 + median deviation≥20; objective-independent", "objective_independent": True, "flagged_count": len(flagged), "flagged": flagged, "raw_scores_unchanged": True}, indent=2) + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":
