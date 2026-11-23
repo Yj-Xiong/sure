@@ -176,7 +176,7 @@ def check_audio_manifest(artifact: dict, run_dir: Path) -> None:
         if policy.get("sample_rate") is not None and info["sample_rate"] != int(policy["sample_rate"]): fail("audio sample rate differs from manifest policy")
         if policy.get("channels") is not None and info["channels"] != int(policy["channels"]): fail("audio channels differ from manifest policy")
         if policy.get("duration_seconds") is not None and (info["duration_seconds"] is None or not math.isclose(info["duration_seconds"], float(policy["duration_seconds"]), abs_tol=0.05)): fail("audio duration differs from manifest policy")
-        lufs_target = policy.get("lufs_target")
+        lufs_target = policy.get("lufs_target", policy.get("target_lufs", policy.get("integrated_lufs_target")))
         true_peak_max = policy.get("true_peak_max_dbTP", policy.get("true_peak_max"))
         if lufs_target is not None or true_peak_max is not None:
             target = float(lufs_target if lufs_target is not None else -23.0)
