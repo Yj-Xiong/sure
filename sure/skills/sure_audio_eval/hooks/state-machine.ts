@@ -122,7 +122,7 @@ export const MAIN_FLOW_UNITS: Unit[] = [
 		forbiddenFields: ["condition_points", "report_persisted"],
 		gateScript: "check_audio_eval.py",
 		gateScriptArgs: () => ["--unit", "ingest_subjective"],
-		helperScripts: ["ingest_subjective.py", "check_audio_eval.py"],
+		helperScripts: ["ingest_subjective.py", "score_checks.py", "check_audio_eval.py"],
 		gateInputs: ["evaluation_context.json", "task_manifest_resolved.json"],
 	},
 	{
@@ -136,7 +136,7 @@ export const MAIN_FLOW_UNITS: Unit[] = [
 		forbiddenFields: ["correlations", "report_persisted"],
 		gateScript: "check_audio_eval.py",
 		gateScriptArgs: () => ["--unit", "aggregate_subjective"],
-		helperScripts: ["aggregate_subjective.py", "check_audio_eval.py"],
+		helperScripts: ["aggregate_subjective.py", "score_checks.py", "check_audio_eval.py"],
 		gateInputs: ["subjective_ingest_report.json"],
 	},
 	{
@@ -150,7 +150,7 @@ export const MAIN_FLOW_UNITS: Unit[] = [
 		forbiddenFields: ["report_persisted"],
 		gateScript: "check_audio_eval.py",
 		gateScriptArgs: () => ["--unit", "joint_analysis"],
-		helperScripts: ["screen_ratings.py", "analyze_conditions.py", "check_audio_eval.py"],
+		helperScripts: ["screen_ratings.py", "analyze_conditions.py", "score_checks.py", "check_audio_eval.py"],
 		gateInputs: ["objective_run_report.json", "condition_summary.json"],
 	},
 	{
